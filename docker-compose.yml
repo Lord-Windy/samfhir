@@ -1,0 +1,15 @@
+services:
+  api:
+    build: backend/
+    ports:
+      - "8000:8000"
+    environment:
+      SAMFHIR_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_started
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
