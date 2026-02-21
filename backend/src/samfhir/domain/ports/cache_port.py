@@ -17,3 +17,6 @@ class CachePort(ABC):
 
     @abstractmethod
     async def stats(self) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def health_check(self) -> bool: ...
