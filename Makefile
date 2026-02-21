@@ -16,9 +16,9 @@ build:
 	docker build -t samfhir-api backend/
 
 deploy: build
-	docker tag samfhir-api us-docker.pkg.dev/samfhir-prod/samfhir-api/samfhir-api:latest
-	docker push us-docker.pkg.dev/samfhir-prod/samfhir-api/samfhir-api:latest
+	docker tag samfhir-api australia-southeast1-docker.pkg.dev/samfhir/samfhir/api:latest
+	docker push australia-southeast1-docker.pkg.dev/samfhir/samfhir/api:latest
 	gcloud run deploy samfhir-api \
-		--image us-docker.pkg.dev/samfhir-prod/samfhir-api/samfhir-api:latest \
-		--region us-central1 \
+		--image australia-southeast1-docker.pkg.dev/samfhir/samfhir/api:latest \
+		--region australia-southeast1 \
 		--platform managed
