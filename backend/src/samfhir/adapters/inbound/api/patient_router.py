@@ -1,6 +1,4 @@
-from typing import Any
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from samfhir.adapters.inbound.api.schemas import (
     AllergyResponse,
@@ -89,7 +87,7 @@ def _summary_to_response(summary: PatientSummary) -> PatientSummaryResponse:
     )
 
 
-def get_patient_service(request: Any) -> PatientService:
+def get_patient_service(request: Request) -> PatientService:
     return request.app.state.patient_service
 
 

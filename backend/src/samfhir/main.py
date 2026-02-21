@@ -35,9 +35,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    application.include_router(health_router.router)
-    application.include_router(patient_router.router)
-    application.include_router(fhir_router.router)
+    application.include_router(health_router)
+    application.include_router(patient_router)
+    application.include_router(fhir_router)
 
     return application
 
