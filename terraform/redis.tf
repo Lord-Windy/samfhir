@@ -8,4 +8,6 @@ resource "google_redis_instance" "redis" {
   connect_mode            = "PRIVATE_SERVICE_ACCESS"
   redis_version           = "REDIS_7_0"
   transit_encryption_mode = "DISABLED"
+
+  depends_on = [google_service_networking_connection.redis_connection]
 }

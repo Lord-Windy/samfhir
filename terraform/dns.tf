@@ -8,5 +8,5 @@ resource "google_dns_record_set" "api" {
   type         = "CNAME"
   ttl          = 300
   managed_zone = google_dns_managed_zone.projectptah.name
-  rrdatas      = [trimsuffix(google_cloud_run_v2_service.api.uri, "/")]
+  rrdatas      = ["${trimprefix(google_cloud_run_v2_service.api.uri, "https://")}."]
 }
