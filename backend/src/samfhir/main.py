@@ -4,6 +4,7 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
 from samfhir.config import Settings
 
 
@@ -34,22 +35,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    @application.get("/health")
-    async def health():
-        try:
-            await application.state.redis.ping()
-            redis_status = "connected"
-        except Exception:
-            redis_status = "disconnected"
-        return {"status": "ok", "redis": redis_status}
-
-    @application.get("/health/ready")
-    async def readiness():
-        try:
-            await application.state.redis.ping()
-            return {"ready": True}
-        except Exception:
-            return {"ready": False}
+    application.include_router(health_router)
+    application.include_router(patient_router)
+    application.include_router(fhir_router)
 
     return application
 
