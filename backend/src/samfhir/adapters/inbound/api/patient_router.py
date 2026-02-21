@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 
 from samfhir.adapters.inbound.api.schemas import (
     AllergyResponse,
@@ -8,6 +8,7 @@ from samfhir.adapters.inbound.api.schemas import (
     PatientResponse,
     PatientSummaryResponse,
 )
+from samfhir.dependencies import get_patient_service
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
@@ -85,10 +86,6 @@ def _summary_to_response(summary: PatientSummary) -> PatientSummaryResponse:
         ],
         allergies=[_allergy_to_response(a) for a in summary.allergies],
     )
-
-
-def get_patient_service(request: Request) -> PatientService:
-    return request.app.state.patient_service
 
 
 @router.get("/{patient_id}", response_model=PatientResponse)
