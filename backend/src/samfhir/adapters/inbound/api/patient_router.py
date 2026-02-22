@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends
 from samfhir.adapters.inbound.api.schemas import (
     AllergyResponse,
     ConditionResponse,
+    CreateConditionRequest,
+    CreateObservationRequest,
     MedicationResponse,
     ObservationResponse,
     PatientResponse,
@@ -12,6 +14,8 @@ from samfhir.dependencies import get_patient_service
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
+    CreateCondition,
+    CreateObservation,
     Medication,
     Observation,
 )
@@ -19,6 +23,7 @@ from samfhir.domain.models.patient import Patient, PatientSummary
 from samfhir.domain.services.patient_service import PatientService
 
 router = APIRouter(prefix="/api/v1/patients", tags=["patients"])
+write_router = APIRouter(prefix="/api/v1", tags=["write"])
 
 
 def _patient_to_response(patient: Patient) -> PatientResponse:
@@ -140,3 +145,38 @@ async def get_patient_allergies(
 ) -> list[AllergyResponse]:
     allergies = await service.search_allergies(patient_id)
     return [_allergy_to_response(a) for a in allergies]
+
+
+@write_router.post("/observations", response_model=ObservationResponse, status_code=201)
+async def create_observation(
+    request: CreateObservationRequest,
+    service: PatientService = Depends(get_patient_service),
+) -> ObservationResponse:
+    observation = await service.create_observation(
+        CreateObservation(
+            patient_id=request.patient_id,
+            code=request.code,
+            display=request.display,
+            value=request.value,
+            unit=request.unit,
+            effective_date=request.effective_date,
+        )
+    )
+    return _observation_to_response(observation)
+
+
+@write_router.post("/conditions", response_model=ConditionResponse, status_code=201)
+async def create_condition(
+    request: CreateConditionRequest,
+    service: PatientService = Depends(get_patient_service),
+) -> ConditionResponse:
+    condition = await service.create_condition(
+        CreateCondition(
+            patient_id=request.patient_id,
+            code=request.code,
+            display=request.display,
+            clinical_status=request.clinical_status,
+            onset_date=request.onset_date,
+        )
+    )
+    return _condition_to_response(condition)

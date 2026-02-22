@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
+from samfhir.adapters.inbound.api.patient_router import write_router
 from samfhir.adapters.outbound.redis_cache import RedisCache
 from samfhir.adapters.outbound.hapi_fhir_client import HapiFhirClient
 from samfhir.config import Settings
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(patient_router)
     application.include_router(fhir_router)
+    application.include_router(write_router)
 
     return application
 
