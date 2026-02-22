@@ -15,7 +15,7 @@ resource "google_cloud_run_v2_service" "api" {
       }
 
       env {
-        name  = "REDIS_URL"
+        name  = "SAMFHIR_REDIS_URL"
         value = "redis://${google_redis_instance.redis.host}:6379"
       }
 

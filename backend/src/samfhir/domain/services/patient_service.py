@@ -72,6 +72,46 @@ class PatientService:
         await self._cache.set(cache_key, _dumps(summary), self._ttl)
         return summary
 
+    async def search_conditions(self, patient_id: str) -> list[Condition]:
+        cache_key = f"conditions:{patient_id}"
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return [_from_dict(Condition, c) for c in json.loads(cached)]
+        conditions = await self._fhir.search_conditions(patient_id)
+        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(c) for c in conditions], default=_date_default), self._ttl)
+        return conditions
+
+    async def search_observations(self, patient_id: str) -> list[Observation]:
+        cache_key = f"observations:{patient_id}"
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return [_from_dict(Observation, o) for o in json.loads(cached)]
+        observations = await self._fhir.search_observations(patient_id)
+        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(o) for o in observations], default=_date_default), self._ttl)
+        return observations
+
+    async def search_medications(self, patient_id: str) -> list[Medication]:
+        cache_key = f"medications:{patient_id}"
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return [_from_dict(Medication, m) for m in json.loads(cached)]
+        medications = await self._fhir.search_medications(patient_id)
+        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(m) for m in medications], default=_date_default), self._ttl)
+        return medications
+
+    async def search_allergies(self, patient_id: str) -> list[Allergy]:
+        cache_key = f"allergies:{patient_id}"
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return [_from_dict(Allergy, a) for a in json.loads(cached)]
+        allergies = await self._fhir.search_allergies(patient_id)
+        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(a) for a in allergies], default=_date_default), self._ttl)
+        return allergies
+
     async def invalidate_patient_cache(self, patient_id: str) -> None:
         await self._cache.delete(f"patient:{patient_id}")
         await self._cache.delete(f"patient_summary:{patient_id}")
+        await self._cache.delete(f"conditions:{patient_id}")
+        await self._cache.delete(f"observations:{patient_id}")
+        await self._cache.delete(f"medications:{patient_id}")
+        await self._cache.delete(f"allergies:{patient_id}")

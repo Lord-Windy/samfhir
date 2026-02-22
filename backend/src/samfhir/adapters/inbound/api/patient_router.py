@@ -111,8 +111,8 @@ async def get_patient_conditions(
     patient_id: str,
     service: PatientService = Depends(get_patient_service),
 ) -> list[ConditionResponse]:
-    summary = await service.get_patient_summary(patient_id)
-    return [_condition_to_response(c) for c in summary.active_conditions]
+    conditions = await service.search_conditions(patient_id)
+    return [_condition_to_response(c) for c in conditions]
 
 
 @router.get("/{patient_id}/observations", response_model=list[ObservationResponse])
@@ -120,8 +120,8 @@ async def get_patient_observations(
     patient_id: str,
     service: PatientService = Depends(get_patient_service),
 ) -> list[ObservationResponse]:
-    summary = await service.get_patient_summary(patient_id)
-    return [_observation_to_response(o) for o in summary.recent_observations]
+    observations = await service.search_observations(patient_id)
+    return [_observation_to_response(o) for o in observations]
 
 
 @router.get("/{patient_id}/medications", response_model=list[MedicationResponse])
@@ -129,8 +129,8 @@ async def get_patient_medications(
     patient_id: str,
     service: PatientService = Depends(get_patient_service),
 ) -> list[MedicationResponse]:
-    summary = await service.get_patient_summary(patient_id)
-    return [_medication_to_response(m) for m in summary.active_medications]
+    medications = await service.search_medications(patient_id)
+    return [_medication_to_response(m) for m in medications]
 
 
 @router.get("/{patient_id}/allergies", response_model=list[AllergyResponse])
@@ -138,5 +138,5 @@ async def get_patient_allergies(
     patient_id: str,
     service: PatientService = Depends(get_patient_service),
 ) -> list[AllergyResponse]:
-    summary = await service.get_patient_summary(patient_id)
-    return [_allergy_to_response(a) for a in summary.allergies]
+    allergies = await service.search_allergies(patient_id)
+    return [_allergy_to_response(a) for a in allergies]
