@@ -1,16 +1,31 @@
+# Stage 1: Build frontend
+FROM node:20-slim AS frontend
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ .
+RUN npm run build
+
+
+# Stage 2: Build backend
 FROM python:3.12-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
+COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --no-dev --no-install-project
 
-COPY src/ src/
+COPY backend/src/ src/
+COPY --from=frontend /frontend/dist src/samfhir/static/
 RUN uv sync --no-dev
 
 
+# Stage 3: Runtime
 FROM python:3.12-slim
 
 WORKDIR /app

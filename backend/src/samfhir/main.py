@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
 from samfhir.adapters.inbound.api.patient_router import write_router
@@ -81,6 +83,15 @@ def create_app() -> FastAPI:
     application.include_router(fhir_router)
     application.include_router(write_router)
     application.include_router(seed_router)
+
+    static_dir = Path(__file__).parent / "static"
+    if static_dir.is_dir():
+        application.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="static")
+        index_html = static_dir / "index.html"
+
+        @application.get("/{path:path}")
+        async def spa_fallback(path: str) -> FileResponse:
+            return FileResponse(index_html)
 
     return application
 
