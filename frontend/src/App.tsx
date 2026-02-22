@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Toaster } from "@/components/ui/sonner"
 import { AppLayout, ErrorBoundary } from "@/components/layout"
 import { SearchPage, CacheStatsPage } from "@/pages"
 import { DashboardPage } from './pages/DashboardPage'
@@ -45,6 +46,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
   )
 }
