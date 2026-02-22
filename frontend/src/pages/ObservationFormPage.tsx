@@ -15,8 +15,6 @@ const PRESETS = [
   { code: "8310-5", display: "Body Temperature", unit: "C" },
 ]
 
-const today = new Date().toISOString().split("T")[0]
-
 interface FormData {
   code: string
   display: string
@@ -36,13 +34,13 @@ export function ObservationFormPage() {
   const navigate = useNavigate()
   const createObservation = useCreateObservation()
 
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FormData>(() => ({
     code: "",
     display: "",
     value: "",
     unit: "",
-    effective_date: today,
-  })
+    effective_date: new Date().toISOString().split("T")[0],
+  }))
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)

@@ -2,8 +2,8 @@ import { createBrowserRouter, RouterProvider } from "react-router"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AppLayout, ErrorBoundary } from "@/components/layout"
 import { SearchPage, CacheStatsPage } from "@/pages"
-import { DashboardPage } from './pages/DashboardPage'
-import { ObservationFormPage } from './pages/ObservationFormPage'
+import { DashboardPage } from "@/pages/DashboardPage"
+import { ObservationFormPage } from "@/pages/ObservationFormPage"
 import { Toaster } from "@/components/ui/sonner"
 
 const queryClient = new QueryClient({
