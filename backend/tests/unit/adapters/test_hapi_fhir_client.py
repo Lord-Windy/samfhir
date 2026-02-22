@@ -532,6 +532,7 @@ async def test_create_observation_builds_correct_fhir_resource(client):
     data = captured_kwargs["data"]
     assert data["resourceType"] == "Observation"
     assert data["status"] == "final"
+    assert data["code"]["coding"][0]["system"] == "http://loinc.org"
     assert data["code"]["coding"][0]["code"] == "8480-6"
     assert data["code"]["coding"][0]["display"] == "Systolic Blood Pressure"
     assert data["subject"]["reference"] == "Patient/patient-1"
@@ -701,7 +702,9 @@ async def test_create_condition_builds_correct_fhir_resource(client):
     assert captured_kwargs["resource_type"] == "Condition"
     data = captured_kwargs["data"]
     assert data["resourceType"] == "Condition"
+    assert data["clinicalStatus"]["coding"][0]["system"] == "http://terminology.hl7.org/CodeSystem/condition-clinical"
     assert data["clinicalStatus"]["coding"][0]["code"] == "active"
+    assert data["code"]["coding"][0]["system"] == "http://snomed.info/sct"
     assert data["code"]["coding"][0]["code"] == "44054006"
     assert data["code"]["coding"][0]["display"] == "Diabetes mellitus"
     assert data["subject"]["reference"] == "Patient/patient-1"
