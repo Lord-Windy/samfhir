@@ -1,3 +1,6 @@
+/** ISO 8601 date string (YYYY-MM-DD) */
+export type ISODateString = string;
+
 // ── Requests ──────────────────────────────────────────────────────────
 
 export interface CreateObservationRequest {
@@ -6,7 +9,7 @@ export interface CreateObservationRequest {
   display: string;
   value: string;
   unit?: string;
-  effective_date?: string;
+  effective_date?: ISODateString;
 }
 
 export interface CreateConditionRequest {
@@ -14,7 +17,7 @@ export interface CreateConditionRequest {
   code: string;
   display: string;
   clinical_status?: string; // default "active"
-  onset_date?: string;
+  onset_date?: ISODateString;
 }
 
 // ── Responses ─────────────────────────────────────────────────────────
@@ -23,7 +26,7 @@ export interface PatientResponse {
   id: string;
   family_name: string;
   given_name: string;
-  birth_date: string;
+  birth_date: ISODateString;
   gender: string;
 }
 
@@ -32,7 +35,7 @@ export interface ConditionResponse {
   code: string;
   display: string;
   clinical_status: string;
-  onset_date: string | null;
+  onset_date: ISODateString | null;
 }
 
 export interface ObservationResponse {
@@ -41,7 +44,7 @@ export interface ObservationResponse {
   display: string;
   value: string;
   unit: string | null;
-  effective_date: string | null;
+  effective_date: ISODateString | null;
 }
 
 export interface MedicationResponse {
@@ -49,7 +52,7 @@ export interface MedicationResponse {
   code: string;
   display: string;
   status: string;
-  authored_on: string | null;
+  authored_on: ISODateString | null;
 }
 
 export interface AllergyResponse {
@@ -76,6 +79,10 @@ export interface CacheStatsResponse {
 export interface HealthResponse {
   status: string;
   redis: string;
+}
+
+export interface ReadinessResponse {
+  ready: boolean;
 }
 
 // ── Errors ────────────────────────────────────────────────────────────
