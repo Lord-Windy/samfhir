@@ -143,7 +143,9 @@ async def test_create_observation_delegates_and_invalidates_cache(
 
     # Prime the cache so we can verify invalidation
     await service.get_patient("test-123")
+    await service.search_observations("test-123")
     assert "patient:test-123" in mock_cache_port._store
+    assert "observations:test-123" in mock_cache_port._store
 
     obs = CreateObservation(
         patient_id="test-123",
@@ -163,6 +165,7 @@ async def test_create_observation_delegates_and_invalidates_cache(
     # Cache should be invalidated
     assert "patient:test-123" not in mock_cache_port._store
     assert "patient_summary:test-123" not in mock_cache_port._store
+    assert "observations:test-123" not in mock_cache_port._store
 
 
 async def test_create_condition_delegates_and_invalidates_cache(

@@ -186,7 +186,63 @@ class HapiFhirClient(FhirPort):
         return [_map_allergy(e) for e in entries]
 
     async def create_observation(self, observation: CreateObservation) -> Observation:
-        raise NotImplementedError("Write operations not yet implemented")
+        resource_data: dict = {
+            "resourceType": "Observation",
+            "status": "final",
+            "code": {
+                "coding": [
+                    {"code": observation.code, "display": observation.display}
+                ]
+            },
+            "subject": {"reference": f"Patient/{observation.patient_id}"},
+            "valueQuantity": {
+                "value": float(observation.value),
+                "unit": observation.unit,
+            },
+        }
+        if observation.effective_date is not None:
+            resource_data["effectiveDateTime"] = (
+                observation.effective_date.isoformat()
+            )
+        try:
+            result = await self._client.resource(
+                "Observation", **resource_data
+            ).save()
+        except ResourceNotFound:
+            raise PatientNotFoundError(observation.patient_id)
+        except OperationOutcome as exc:
+            raise FhirServerError(
+                status_code=0, detail=_extract_operation_outcome_detail(exc)
+            ) from exc
+        except aiohttp.ClientError as exc:
+            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        return _map_observation(result)
 
     async def create_condition(self, condition: CreateCondition) -> Condition:
-        raise NotImplementedError("Write operations not yet implemented")
+        resource_data: dict = {
+            "resourceType": "Condition",
+            "clinicalStatus": {
+                "coding": [{"code": condition.clinical_status}]
+            },
+            "code": {
+                "coding": [
+                    {"code": condition.code, "display": condition.display}
+                ]
+            },
+            "subject": {"reference": f"Patient/{condition.patient_id}"},
+        }
+        if condition.onset_date is not None:
+            resource_data["onsetDateTime"] = condition.onset_date.isoformat()
+        try:
+            result = await self._client.resource(
+                "Condition", **resource_data
+            ).save()
+        except ResourceNotFound:
+            raise PatientNotFoundError(condition.patient_id)
+        except OperationOutcome as exc:
+            raise FhirServerError(
+                status_code=0, detail=_extract_operation_outcome_detail(exc)
+            ) from exc
+        except aiohttp.ClientError as exc:
+            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        return _map_condition(result)
