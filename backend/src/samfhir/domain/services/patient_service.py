@@ -159,4 +159,16 @@ class PatientService:
         await self._cache.delete(f"allergies:{patient_id}")
 
     async def search_patients(self, name: str | None = None) -> list[Patient]:
-        return await self._fhir.search_patients(name)
+        cache_key = f"patient_search:{name or ''}"
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return [_from_dict(Patient, p) for p in json.loads(cached)]
+        patients = await self._fhir.search_patients(name)
+        await self._cache.set(
+            cache_key,
+            json.dumps(
+                [dataclasses.asdict(p) for p in patients], default=_date_default
+            ),
+            self._ttl,
+        )
+        return patients
