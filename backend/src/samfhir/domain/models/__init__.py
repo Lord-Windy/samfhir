@@ -1,3 +1,4 @@
+from samfhir.domain.models.errors import FhirServerError, PatientNotFoundError
 from samfhir.domain.models.patient import Patient, PatientSummary
 from samfhir.domain.models.observation import (
     Observation,
@@ -13,4 +14,6 @@ __all__ = [
     "Condition",
     "Medication",
     "Allergy",
+    "PatientNotFoundError",
+    "FhirServerError",
 ]

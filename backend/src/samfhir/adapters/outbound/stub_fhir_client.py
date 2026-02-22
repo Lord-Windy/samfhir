@@ -1,5 +1,6 @@
 from datetime import date
 
+from samfhir.domain.models.errors import PatientNotFoundError
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
@@ -120,12 +121,12 @@ class StubFhirClient(FhirPort):
 
     async def get_patient(self, patient_id: str) -> Patient:
         if patient_id != self.JASON_ARGONAUT_ID:
-            raise ValueError(f"Patient {patient_id} not found")
+            raise PatientNotFoundError(patient_id)
         return self._patient
 
     async def get_patient_summary(self, patient_id: str) -> PatientSummary:
         if patient_id != self.JASON_ARGONAUT_ID:
-            raise ValueError(f"Patient {patient_id} not found")
+            raise PatientNotFoundError(patient_id)
         active_conditions = [
             c for c in self._conditions if c.clinical_status == "active"
         ]
@@ -139,20 +140,20 @@ class StubFhirClient(FhirPort):
 
     async def search_conditions(self, patient_id: str) -> list[Condition]:
         if patient_id != self.JASON_ARGONAUT_ID:
-            raise ValueError(f"Patient {patient_id} not found")
+            raise PatientNotFoundError(patient_id)
         return self._conditions
 
     async def search_observations(self, patient_id: str) -> list[Observation]:
         if patient_id != self.JASON_ARGONAUT_ID:
-            raise ValueError(f"Patient {patient_id} not found")
+            raise PatientNotFoundError(patient_id)
         return self._observations
 
     async def search_medications(self, patient_id: str) -> list[Medication]:
         if patient_id != self.JASON_ARGONAUT_ID:
-            raise ValueError(f"Patient {patient_id} not found")
+            raise PatientNotFoundError(patient_id)
         return self._medications
 
     async def search_allergies(self, patient_id: str) -> list[Allergy]:
         if patient_id != self.JASON_ARGONAUT_ID:
-            raise ValueError(f"Patient {patient_id} not found")
+            raise PatientNotFoundError(patient_id)
         return self._allergies

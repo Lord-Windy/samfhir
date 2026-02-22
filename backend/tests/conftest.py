@@ -8,11 +8,17 @@ from fastapi import FastAPI
 from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
 from samfhir.adapters.outbound.stub_fhir_client import StubFhirClient
 from samfhir.config import Settings
-from samfhir.domain.models.observation import Allergy, Condition, Medication, Observation
+from samfhir.domain.models.observation import (
+    Allergy,
+    Condition,
+    Medication,
+    Observation,
+)
 from samfhir.domain.models.patient import Patient, PatientSummary
 from samfhir.domain.ports.cache_port import CachePort
 from samfhir.domain.ports.fhir_port import FhirPort
 from samfhir.domain.services.patient_service import PatientService
+from samfhir.main import _register_exception_handlers
 
 
 class MockFhirPort(FhirPort):
@@ -29,26 +35,39 @@ class MockFhirPort(FhirPort):
         )
         self._conditions = [
             Condition(
-                id="c1", code="44054006", display="Diabetes",
-                clinical_status="active", onset_date=date(2020, 1, 1),
+                id="c1",
+                code="44054006",
+                display="Diabetes",
+                clinical_status="active",
+                onset_date=date(2020, 1, 1),
             ),
         ]
         self._observations = [
             Observation(
-                id="o1", code="8480-6", display="BP Systolic",
-                value="120", unit="mmHg", effective_date=date(2024, 1, 1),
+                id="o1",
+                code="8480-6",
+                display="BP Systolic",
+                value="120",
+                unit="mmHg",
+                effective_date=date(2024, 1, 1),
             ),
         ]
         self._medications = [
             Medication(
-                id="m1", code="861007", display="Metformin",
-                status="active", authored_on=date(2023, 1, 1),
+                id="m1",
+                code="861007",
+                display="Metformin",
+                status="active",
+                authored_on=date(2023, 1, 1),
             ),
         ]
         self._allergies = [
             Allergy(
-                id="a1", code="763875007", display="Penicillin",
-                clinical_status="active", criticality="high",
+                id="a1",
+                code="763875007",
+                display="Penicillin",
+                clinical_status="active",
+                criticality="high",
             ),
         ]
 
@@ -145,8 +164,10 @@ async def test_client(mock_cache_port: MockCachePort):
     app.state.cache = mock_cache_port
     app.state.fhir_client = StubFhirClient()
     app.state.patient_service = PatientService(
-        app.state.fhir_client, app.state.cache,
+        app.state.fhir_client,
+        app.state.cache,
     )
+    _register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(patient_router)
     app.include_router(fhir_router)

@@ -238,15 +238,76 @@ async def test_get_patient_calls_fhirpy(client):
     assert patient.given_name == "User"
 
 
-async def test_get_patient_not_found_raises_value_error(client):
+async def test_get_patient_not_found_raises_patient_not_found_error(client):
     from fhirpy.base.exceptions import ResourceNotFound
+
+    from samfhir.domain.models.errors import PatientNotFoundError
 
     mock_ref = AsyncMock()
     mock_ref.to_resource.side_effect = ResourceNotFound()
     client._client.reference = lambda *a, **kw: mock_ref
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(PatientNotFoundError) as exc_info:
         await client.get_patient("nonexistent")
+    assert exc_info.value.patient_id == "nonexistent"
+
+
+async def test_get_patient_operation_outcome_raises_fhir_server_error(client):
+    from fhirpy.base.exceptions import OperationOutcome
+
+    from samfhir.domain.models.errors import FhirServerError
+
+    mock_ref = AsyncMock()
+    mock_ref.to_resource.side_effect = OperationOutcome(reason="Server error")
+    client._client.reference = lambda *a, **kw: mock_ref
+
+    with pytest.raises(FhirServerError):
+        await client.get_patient("test-123")
+
+
+async def test_get_patient_connection_error(client):
+    import aiohttp
+
+    mock_ref = AsyncMock()
+    mock_ref.to_resource.side_effect = aiohttp.ClientConnectionError(
+        "Connection refused"
+    )
+    client._client.reference = lambda *a, **kw: mock_ref
+
+    with pytest.raises(ConnectionError):
+        await client.get_patient("test-123")
+
+
+async def test_search_not_found_raises_patient_not_found_error(client):
+    from fhirpy.base.exceptions import ResourceNotFound
+
+    from samfhir.domain.models.errors import PatientNotFoundError
+
+    mock_searchset = MagicMock()
+    mock_searchset.search.return_value = mock_searchset
+    mock_searchset.limit.return_value = mock_searchset
+    mock_searchset.fetch = AsyncMock(side_effect=ResourceNotFound())
+    client._client.resources = lambda rt: mock_searchset
+
+    with pytest.raises(PatientNotFoundError):
+        await client.search_conditions("nonexistent")
+
+
+async def test_search_operation_outcome_raises_fhir_server_error(client):
+    from fhirpy.base.exceptions import OperationOutcome
+
+    from samfhir.domain.models.errors import FhirServerError
+
+    mock_searchset = MagicMock()
+    mock_searchset.search.return_value = mock_searchset
+    mock_searchset.limit.return_value = mock_searchset
+    mock_searchset.fetch = AsyncMock(
+        side_effect=OperationOutcome(reason="Internal server error")
+    )
+    client._client.resources = lambda rt: mock_searchset
+
+    with pytest.raises(FhirServerError):
+        await client.search_conditions("test-123")
 
 
 async def test_search_conditions(client):

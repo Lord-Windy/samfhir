@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
 from samfhir.adapters.outbound.redis_cache import RedisCache
 from samfhir.adapters.outbound.hapi_fhir_client import HapiFhirClient
 from samfhir.config import Settings
+from samfhir.domain.models.errors import FhirServerError, PatientNotFoundError
 from samfhir.domain.services.patient_service import PatientService
 
 
@@ -22,6 +24,35 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         await app.state.redis.aclose()
+
+
+def _register_exception_handlers(application: FastAPI) -> None:
+    @application.exception_handler(PatientNotFoundError)
+    async def patient_not_found_handler(
+        request: Request, exc: PatientNotFoundError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "patient_not_found", "patient_id": exc.patient_id},
+        )
+
+    @application.exception_handler(FhirServerError)
+    async def fhir_server_error_handler(
+        request: Request, exc: FhirServerError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "fhir_server_error", "detail": exc.detail},
+        )
+
+    @application.exception_handler(ConnectionError)
+    async def connection_error_handler(
+        request: Request, exc: ConnectionError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "fhir_server_unavailable"},
+        )
 
 
 def create_app() -> FastAPI:
@@ -40,6 +71,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    _register_exception_handlers(application)
 
     application.include_router(health_router)
     application.include_router(patient_router)

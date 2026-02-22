@@ -50,3 +50,25 @@ async def test_cache_flush_clears_data(test_client: httpx.AsyncClient):
     stats = resp.json()
     assert stats["hits"] == 0
     assert stats["misses"] == 0
+
+
+async def test_patient_not_found_returns_404(test_client: httpx.AsyncClient):
+    resp = await test_client.get("/api/v1/patients/nonexistent-id")
+    assert resp.status_code == 404
+    data = resp.json()
+    assert data["error"] == "patient_not_found"
+    assert data["patient_id"] == "nonexistent-id"
+
+
+async def test_patient_summary_not_found_returns_404(test_client: httpx.AsyncClient):
+    resp = await test_client.get("/api/v1/patients/nonexistent-id/summary")
+    assert resp.status_code == 404
+    data = resp.json()
+    assert data["error"] == "patient_not_found"
+
+
+async def test_conditions_not_found_returns_404(test_client: httpx.AsyncClient):
+    resp = await test_client.get("/api/v1/patients/nonexistent-id/conditions")
+    assert resp.status_code == 404
+    data = resp.json()
+    assert data["error"] == "patient_not_found"
