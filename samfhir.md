@@ -2,11 +2,12 @@
 
 ## Overview
 
-SamFHIR is a demonstration project that integrates with Epic's FHIR sandbox
-(fhir.epic.com) using the SMART on FHIR authorization framework. It showcases
-competency in healthcare interoperability standards through a Python FastAPI
-backend, Redis caching layer, and a React/TypeScript frontend — all deployed to
-GCP via Terraform under the domain `projectptah.com`.
+SamFHIR is a demonstration project that integrates with FHIR R4 servers —
+starting with HAPI FHIR (hapi.fhir.org) for immediate live data, then adding
+Epic's FHIR sandbox (fhir.epic.com) with SMART on FHIR authorization in a later
+phase. It showcases competency in healthcare interoperability standards through a
+Python FastAPI backend, Redis caching layer, and a React/TypeScript frontend —
+all deployed to GCP via Terraform under the domain `projectptah.com`.
 
 **Target audience for this TRD**: A Java/Rust developer. Python idioms and
 architectural decisions are spelled out explicitly.
@@ -129,7 +130,8 @@ samfhir/
 │   │       │   │           └── patient_schemas.py
 │   │       │   └── outbound/     # Driven adapters (things we call)
 │   │       │       ├── __init__.py
-│   │       │       ├── epic_fhir_client.py  # Implements FhirPort using fhirpy
+│   │       │       ├── hapi_fhir_client.py   # Implements FhirPort for HAPI (Phase 2)
+│   │       │       ├── epic_fhir_client.py  # Implements FhirPort for Epic (Phase 4)
 │   │       │       ├── redis_cache.py       # Implements CachePort using redis.asyncio
 │   │       │       └── smart_auth.py        # SMART on FHIR OAuth2 flow
 │   │       │
@@ -144,7 +146,7 @@ samfhir/
 │           ├── test_patient_router.py
 │           └── test_redis_cache.py
 │
-├── frontend/                     # Phase 3: React + TypeScript
+├── frontend/                     # Phase 3: React + TypeScript (unchanged)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── vite.config.ts
@@ -208,7 +210,7 @@ Cloud Run (samfhir-api)          ◄── Built-in HTTPS + managed cert
    ├──► Memorystore Redis        ◄── via VPC Connector, port 6379
    │    (private, no public IP)
    │
-   └──► Epic FHIR Sandbox        ◄── outbound HTTPS to fhir.epic.com
+   └──► FHIR Server              ◄── outbound HTTP(S) to HAPI / Epic
         (external)
 ```
 
@@ -382,10 +384,11 @@ redirect cycle.
 
 ## API Endpoints
 
-### Phase 1 — Stub Endpoints (Pre-Epic Integration)
+### Phase 1 — Stub Endpoints (Pre-FHIR Integration)
 
 These return mock/empty responses. The point is to have the routing, validation,
-caching infrastructure, and hexagonal wiring all working before Epic is involved.
+caching infrastructure, and hexagonal wiring all working before a live FHIR
+server is involved.
 
 | Method | Path                          | Description                                       | Returns                 |
 | ------ | ----------------------------- | ------------------------------------------------- | ----------------------- |
@@ -400,20 +403,17 @@ caching infrastructure, and hexagonal wiring all working before Epic is involved
 | GET    | `/api/v1/cache/stats`         | Redis cache hit/miss statistics                   | Cache stats DTO         |
 | DELETE | `/api/v1/cache`               | Flush the cache (dev/debug tool)                  | `{"flushed": true}`     |
 
-### Phase 2 — Live FHIR Endpoints (Epic Integration)
+### Phase 2 — Live FHIR Endpoints (HAPI Integration)
 
 Same paths as above, but now backed by real FHIR calls through the hexagonal
-ports. Additional endpoints for the SMART on FHIR flow:
+ports. Additional write endpoints:
 
 | Method | Path                          | Description                                       |
 | ------ | ----------------------------- | ------------------------------------------------- |
-| GET    | `/smart/launch`               | Initiates SMART standalone launch → redirects to Epic |
-| GET    | `/smart/callback`             | OAuth callback from Epic → exchanges code for token |
-| GET    | `/smart/status`               | Check if current session has a valid token        |
-| POST   | `/api/v1/observations`        | Write an observation back to the sandbox          |
-| POST   | `/api/v1/conditions`          | Write a condition back to the sandbox             |
+| POST   | `/api/v1/observations`        | Write an observation to the FHIR server           |
+| POST   | `/api/v1/conditions`          | Write a condition to the FHIR server              |
 
-**Writing back to the sandbox** is important to demonstrate — it shows
+**Writing back to the server** is important to demonstrate — it shows
 bidirectional FHIR capability, not just read-only consumption.
 
 ### Phase 3 — Frontend-Facing Endpoints
@@ -421,6 +421,16 @@ bidirectional FHIR capability, not just read-only consumption.
 No new backend endpoints needed. The React frontend consumes the Phase 2 API.
 Static assets are served by FastAPI's `StaticFiles` mount or a separate Cloud Run
 service.
+
+### Phase 4 — SMART on FHIR Endpoints (Epic Integration)
+
+Additional endpoints for the SMART on FHIR OAuth2 flow:
+
+| Method | Path                          | Description                                       |
+| ------ | ----------------------------- | ------------------------------------------------- |
+| GET    | `/smart/launch`               | Initiates SMART standalone launch → redirects to Epic |
+| GET    | `/smart/callback`             | OAuth callback from Epic → exchanges code for token |
+| GET    | `/smart/status`               | Check if current session has a valid token        |
 
 ---
 
@@ -499,17 +509,17 @@ class CachePort(ABC):
 
 ---
 
-## Other FHIR Sandboxes (Stretch Goal)
+## FHIR Providers
 
-If Epic integration is complete and there's time, the hexagonal architecture
-makes it trivial to swap in other FHIR servers — just write a new adapter
-implementing `FhirPort`.
+The hexagonal architecture makes it trivial to swap FHIR servers — just write a
+new adapter implementing `FhirPort`.
 
-| Sandbox               | URL                                                          | Auth Required | Notes                            |
-| --------------------- | ------------------------------------------------------------ | ------------- | -------------------------------- |
-| HAPI FHIR (open)      | `http://hapi.fhir.org/baseR4`                                | No            | Read/write, periodically purged. |
-| Cerner/Oracle (open)  | `https://fhir-open.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d/` | No            | Read-only.                       |
-| Cerner/Oracle (SMART) | `https://fhir.cerner.com/`                                   | Yes           | Full SMART on FHIR.              |
+| Sandbox               | URL                                                          | Auth Required | Phase    | Notes                            |
+| --------------------- | ------------------------------------------------------------ | ------------- | -------- | -------------------------------- |
+| **HAPI FHIR (open)**  | `http://hapi.fhir.org/baseR4`                                | No            | Phase 2  | Primary. Read/write, periodically purged. |
+| **Epic (SMART)**      | `https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4` | Yes (SMART)   | Phase 4  | Requires app registration + SMART on FHIR. |
+| Cerner/Oracle (open)  | `https://fhir-open.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d/` | No            | Stretch  | Read-only.                       |
+| Cerner/Oracle (SMART) | `https://fhir.cerner.com/`                                   | Yes           | Stretch  | Full SMART on FHIR.              |
 
 ---
 
@@ -581,67 +591,47 @@ Redis connected and stub endpoints returning mock data. No FHIR integration yet.
 
 ---
 
-### Phase 2: SMART on FHIR + Epic Integration
+### Phase 2: HAPI FHIR Integration
 
-**Goal**: Replace the stub FHIR adapter with a real Epic adapter. Implement the
-full SMART on FHIR standalone launch flow. Demonstrate reading from and writing
-to the Epic sandbox.
+**Goal**: Replace the stub FHIR adapter with a live HAPI FHIR adapter. No
+authentication required — HAPI's public R4 endpoint is open. Demonstrate reading
+from and writing to a real FHIR server immediately.
 
 #### Prerequisites
 
 - Phase 1 complete and deployed
-- Application registered at [fhir.epic.com](https://fhir.epic.com/) with:
-  - Redirect URI: `https://api.projectptah.com/smart/callback`
-  - FHIR R4 API access
-  - Requested resources: Patient, Observation, Condition, MedicationRequest,
-    AllergyIntolerance
-  - Non-Production Client ID received
+- No registration or credentials needed (HAPI is open)
 
 #### Deliverables
 
-1. **SMART on FHIR OAuth2 flow**:
-   - `smart_auth.py` adapter handling the full flow:
-     - SMART configuration discovery (`.well-known/smart-configuration`)
-     - Authorization URL generation with PKCE
-     - Callback handler: code → token exchange
-     - Token storage in Redis with TTL
-     - Token refresh if Epic supports it for the app type
-   - State parameter (CSRF) stored in Redis during the authorize → callback cycle
-   - PKCE verifier stored in Redis keyed by state parameter
-
-2. **Epic FHIR adapter**:
-   - `epic_fhir_client.py` implementing `FhirPort`
-   - Uses `fhirpy.AsyncFHIRClient` with the access token from the SMART flow
-   - Maps FHIR R4 resources (`fhir.resources.R4B`) to our domain models
+1. **HAPI FHIR adapter**:
+   - `hapi_fhir_client.py` implementing `FhirPort`
+   - Uses `fhirpy.AsyncFHIRClient` against `http://hapi.fhir.org/baseR4`
+   - Maps FHIR R4 resources (`fhir.resources`) to our domain models
    - Caching layer wraps FHIR calls (cache-aside pattern via CachePort)
 
-3. **Write-back endpoints**:
-   - `POST /api/v1/observations` — create a simple Observation (e.g., a vital
-     sign or a text note) in the Epic sandbox
-   - `POST /api/v1/conditions` — create a Condition in the Epic sandbox
+2. **Write-back endpoints**:
+   - `POST /api/v1/observations` — create an Observation in HAPI
+   - `POST /api/v1/conditions` — create a Condition in HAPI
    - These demonstrate bidirectional FHIR capability
 
-4. **Session management**:
-   - Simple cookie-based session ID (no user authentication — as specified)
-   - Session ID maps to the SMART token in Redis
-   - If no valid session/token, redirect to `/smart/launch`
-
-5. **Error handling**:
-   - Graceful handling of token expiry (re-trigger SMART flow)
+3. **Error handling**:
    - FHIR OperationOutcome errors mapped to meaningful API responses
-   - Rate limiting awareness (Epic has rate limits — back off and retry)
+   - Graceful handling of HAPI downtime / network errors
+   - Note: HAPI is periodically purged — patients may disappear
+
+4. **Seed data** (optional):
+   - Script or endpoint to create a test patient + resources in HAPI
+   - Useful since HAPI data is periodically purged
 
 #### Phase 2 Acceptance Criteria
 
-- [ ] Navigating to `/smart/launch` redirects to Epic's authorization page
-- [ ] After logging in with `fhirjason`/`epicepic1`, the callback completes and
-      a token is stored in Redis
-- [ ] `GET /api/v1/patients/{epic_patient_id}` returns real patient data from Epic
+- [ ] `GET /api/v1/patients/{id}` returns real patient data from HAPI FHIR
 - [ ] `GET /api/v1/patients/{id}/summary` aggregates real data from multiple FHIR
       resources
-- [ ] `POST /api/v1/observations` successfully creates an observation in the sandbox
+- [ ] `POST /api/v1/observations` successfully creates an observation in HAPI
 - [ ] Cache stats show hits on repeated requests for the same patient
-- [ ] Token expiry is handled gracefully (user is redirected to re-authorize)
+- [ ] OperationOutcome errors are returned as meaningful JSON responses
 
 #### Phase 2 Decisions
 
@@ -649,16 +639,15 @@ to the Epic sandbox.
 | --------------------- | ----------------------------- | -------------------------------------------------------------- |
 | FHIR client library   | `fhirpy` (async)              | Async, clean API, no opinion on auth (we handle that).         |
 | FHIR models           | `fhir.resources`              | Pydantic v2 models for validation/serialization of FHIR JSON.  |
-| OAuth library         | `authlib` + `httpx`           | Full control. `authlib` handles PKCE generation cleanly.       |
-| Session mechanism     | Cookie + Redis                | Simple. No JWT needed since this is a server-rendered flow.    |
-| FHIR version          | R4                            | Epic's recommended version. DSTU2 is legacy.                   |
+| FHIR server           | HAPI FHIR (open)              | No registration, no auth. Immediate live data.                 |
+| FHIR version          | R4                            | Standard version supported by HAPI, Epic, and Cerner.          |
 
 ---
 
 ### Phase 3: React Frontend
 
 **Goal**: A React/TypeScript SPA that provides a user-friendly interface for
-browsing FHIR data and performing actions against the Epic sandbox.
+browsing FHIR data and performing actions against the FHIR server.
 
 #### Prerequisites
 
@@ -670,10 +659,10 @@ browsing FHIR data and performing actions against the Epic sandbox.
 1. **React application** (Vite + TypeScript):
    - Patient dashboard: display demographics, conditions, observations, meds,
      allergies in a clean layout
-   - SMART launch trigger: button to initiate the OAuth flow
+   - Patient search / ID entry: look up patients on HAPI FHIR
    - Observation entry form: submit a new observation (e.g., blood pressure, note)
    - Cache statistics view: show cache hit rates and cached keys
-   - Connection status indicator: show whether we have a valid FHIR token
+   - Connection status indicator: show whether the FHIR server is reachable
 
 2. **API client layer**:
    - Typed API client using `fetch` or a lightweight wrapper
@@ -696,8 +685,8 @@ browsing FHIR data and performing actions against the Epic sandbox.
 #### Phase 3 Acceptance Criteria
 
 - [ ] Frontend loads at `https://projectptah.com` (or `https://app.projectptah.com`)
-- [ ] User can click "Connect to Epic" and complete the SMART flow
-- [ ] Patient dashboard displays real data from Epic after authentication
+- [ ] User can search for or enter a patient ID and view their data
+- [ ] Patient dashboard displays real data from HAPI FHIR
 - [ ] User can submit a new observation via the form
 - [ ] Cache stats are visible in the UI
 - [ ] Works in Chrome and Firefox (no IE/Safari testing needed)
@@ -711,6 +700,78 @@ browsing FHIR data and performing actions against the Epic sandbox.
 | State management    | React Query (TanStack) | Handles caching, loading states, and refetching for API calls. |
 | Routing             | React Router v7      | Standard. Only a few routes needed.                     |
 | Serving             | FastAPI `StaticFiles` | Single deployment unit. Simple.                         |
+
+---
+
+### Phase 4: SMART on FHIR + Epic Integration
+
+**Goal**: Add Epic as a second FHIR provider via the SMART on FHIR standalone
+launch flow. Requires app registration at fhir.epic.com (may already be
+approved by this point).
+
+#### Prerequisites
+
+- Phase 2 complete (HAPI adapter working)
+- Application registered at [fhir.epic.com](https://fhir.epic.com/) with:
+  - Redirect URI: `https://api.projectptah.com/smart/callback`
+  - FHIR R4 API access
+  - Requested resources: Patient, Observation, Condition, MedicationRequest,
+    AllergyIntolerance
+  - Non-Production Client ID received
+
+#### Deliverables
+
+1. **SMART on FHIR OAuth2 flow**:
+   - `smart_auth.py` adapter handling the full flow:
+     - SMART configuration discovery (`.well-known/smart-configuration`)
+     - Authorization URL generation with PKCE
+     - Callback handler: code → token exchange
+     - Token storage in Redis with TTL
+     - Token refresh if Epic supports it for the app type
+   - State parameter (CSRF) stored in Redis during the authorize → callback cycle
+   - PKCE verifier stored in Redis keyed by state parameter
+
+2. **Epic FHIR adapter**:
+   - `epic_fhir_client.py` implementing `FhirPort`
+   - Uses `fhirpy.AsyncFHIRClient` with the access token from the SMART flow
+   - Maps FHIR R4 resources (`fhir.resources`) to our domain models
+   - Caching layer wraps FHIR calls (cache-aside pattern via CachePort)
+
+3. **Session management**:
+   - Simple cookie-based session ID (no user authentication — as specified)
+   - Session ID maps to the SMART token in Redis
+   - If no valid session/token, redirect to `/smart/launch`
+
+4. **Provider switching**:
+   - Support selecting HAPI or Epic as the active provider
+   - Epic requires authenticated session; HAPI works without auth
+
+5. **Error handling**:
+   - Graceful handling of token expiry (re-trigger SMART flow)
+   - FHIR OperationOutcome errors mapped to meaningful API responses
+   - Rate limiting awareness (Epic has rate limits — back off and retry)
+
+#### Phase 4 Acceptance Criteria
+
+- [ ] Navigating to `/smart/launch` redirects to Epic's authorization page
+- [ ] After logging in with `fhirjason`/`epicepic1`, the callback completes and
+      a token is stored in Redis
+- [ ] `GET /api/v1/patients/{epic_patient_id}` returns real patient data from Epic
+- [ ] `GET /api/v1/patients/{id}/summary` aggregates real data from multiple FHIR
+      resources
+- [ ] `POST /api/v1/observations` successfully creates an observation in the sandbox
+- [ ] Cache stats show hits on repeated requests for the same patient
+- [ ] Token expiry is handled gracefully (user is redirected to re-authorize)
+
+#### Phase 4 Decisions
+
+| Decision              | Choice                        | Rationale                                                      |
+| --------------------- | ----------------------------- | -------------------------------------------------------------- |
+| FHIR client library   | `fhirpy` (async)              | Async, clean API, no opinion on auth (we handle that).         |
+| FHIR models           | `fhir.resources`              | Pydantic v2 models for validation/serialization of FHIR JSON.  |
+| OAuth library         | `authlib` + `httpx`           | Full control. `authlib` handles PKCE generation cleanly.       |
+| Session mechanism     | Cookie + Redis                | Simple. No JWT needed since this is a server-rendered flow.    |
+| FHIR version          | R4                            | Epic's recommended version. DSTU2 is legacy.                   |
 
 ---
 
@@ -733,7 +794,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # FHIR / SMART
-    fhir_base_url: str = "https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4"
+    fhir_base_url: str = "http://hapi.fhir.org/baseR4"
     smart_client_id: str = ""
     smart_redirect_uri: str = "http://localhost:8000/smart/callback"
     smart_scopes: str = "launch/patient patient/Patient.rs patient/Observation.rs patient/Condition.rs openid fhirUser"

@@ -70,9 +70,10 @@ Configure Docker authentication:
 gcloud auth configure-docker australia-southeast1-docker.pkg.dev
 ```
 
-### 5. Epic FHIR App Registration (Phase 2 Prep)
+### 5. Epic FHIR App Registration (Phase 4 Prep)
 
-Not required for Phase 1, but register early since approval can take time:
+Not required until Phase 4 (SMART on FHIR + Epic), but register early since
+approval can take time:
 
 1. Go to [fhir.epic.com](https://fhir.epic.com/) and create an account
 2. Register a new application:
@@ -81,7 +82,7 @@ Not required for Phase 1, but register early since approval can take time:
    - **FHIR version**: R4
    - **Resources**: Patient, Observation, Condition, MedicationRequest,
      AllergyIntolerance
-3. Save the **Non-Production Client ID** — you'll need it in Phase 2
+3. Save the **Non-Production Client ID** — you'll need it in Phase 4
 
 ---
 
@@ -192,7 +193,8 @@ backend/src/samfhir/adapters/
 
 **`stub_fhir_client.py`** — returns hardcoded mock data for Jason Argonaut
 (Epic's test patient). This lets the full API work end-to-end without Epic. Will
-be swapped for `epic_fhir_client.py` in Phase 2.
+be swapped for `hapi_fhir_client.py` in Phase 2 (or `epic_fhir_client.py` in
+Phase 4).
 
 **`redis_cache.py`** — implements CachePort using `redis.asyncio`:
 
@@ -249,7 +251,7 @@ FastAPI's `Depends()` composition root. Provides:
 - `get_settings` → `Settings` singleton
 - `get_redis` → Redis connection (from app lifespan state)
 - `get_cache` → `RedisCacheAdapter` (depends on `get_redis`)
-- `get_fhir_client` → `StubFhirClient` (swapped to EpicFhirClient in Phase 2)
+- `get_fhir_client` → `StubFhirClient` (swapped to HapiFhirClient in Phase 2)
 - `get_patient_service` → `PatientService` (depends on `get_fhir_client` +
   `get_cache`)
 

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # FHIR / SMART
-    fhir_base_url: str = "https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4"
+    fhir_base_url: str = "http://hapi.fhir.org/baseR4"
     smart_client_id: str = ""
     smart_redirect_uri: str = "http://localhost:8000/smart/callback"
     smart_scopes: str = (

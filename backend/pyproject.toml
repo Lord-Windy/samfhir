@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "samfhir"
 version = "0.1.0"
-description = "FHIR patient data viewer backed by Epic's sandbox"
+description = "FHIR patient data viewer backed by HAPI FHIR / Epic sandboxes"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",
