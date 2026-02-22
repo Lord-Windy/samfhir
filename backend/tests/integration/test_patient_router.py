@@ -72,3 +72,107 @@ async def test_conditions_not_found_returns_404(test_client: httpx.AsyncClient):
     assert resp.status_code == 404
     data = resp.json()
     assert data["error"] == "patient_not_found"
+
+
+async def test_create_observation_returns_201(test_client: httpx.AsyncClient):
+    resp = await test_client.post(
+        "/api/v1/observations",
+        json={
+            "patient_id": PATIENT_ID,
+            "code": "8867-4",
+            "display": "Heart rate",
+            "value": "72",
+            "unit": "bpm",
+            "effective_date": "2024-06-01",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["code"] == "8867-4"
+    assert data["display"] == "Heart rate"
+    assert data["value"] == "72"
+    assert data["unit"] == "bpm"
+    assert data["effective_date"] == "2024-06-01"
+    assert data["id"]  # server-assigned
+
+
+async def test_create_observation_minimal(test_client: httpx.AsyncClient):
+    resp = await test_client.post(
+        "/api/v1/observations",
+        json={
+            "patient_id": PATIENT_ID,
+            "code": "8867-4",
+            "display": "Heart rate",
+            "value": "72",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["unit"] is None
+    assert data["effective_date"] is None
+
+
+async def test_create_condition_returns_201(test_client: httpx.AsyncClient):
+    resp = await test_client.post(
+        "/api/v1/conditions",
+        json={
+            "patient_id": PATIENT_ID,
+            "code": "73211009",
+            "display": "Diabetes mellitus",
+            "clinical_status": "active",
+            "onset_date": "2023-03-15",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["code"] == "73211009"
+    assert data["display"] == "Diabetes mellitus"
+    assert data["clinical_status"] == "active"
+    assert data["onset_date"] == "2023-03-15"
+    assert data["id"]
+
+
+async def test_create_condition_defaults(test_client: httpx.AsyncClient):
+    resp = await test_client.post(
+        "/api/v1/conditions",
+        json={
+            "patient_id": PATIENT_ID,
+            "code": "73211009",
+            "display": "Diabetes mellitus",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["clinical_status"] == "active"
+    assert data["onset_date"] is None
+
+
+async def test_create_observation_invalid_patient_returns_404(
+    test_client: httpx.AsyncClient,
+):
+    resp = await test_client.post(
+        "/api/v1/observations",
+        json={
+            "patient_id": "nonexistent-id",
+            "code": "8867-4",
+            "display": "Heart rate",
+            "value": "72",
+        },
+    )
+    assert resp.status_code == 404
+    assert resp.json()["error"] == "patient_not_found"
+
+
+async def test_create_condition_invalid_patient_returns_404(
+    test_client: httpx.AsyncClient,
+):
+    resp = await test_client.post(
+        "/api/v1/conditions",
+        json={
+            "patient_id": "nonexistent-id",
+            "code": "73211009",
+            "display": "Diabetes mellitus",
+        },
+    )
+    assert resp.status_code == 404
+    assert resp.json()["error"] == "patient_not_found"

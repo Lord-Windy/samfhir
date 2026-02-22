@@ -3,6 +3,23 @@ from datetime import date
 from pydantic import BaseModel
 
 
+class CreateObservationRequest(BaseModel):
+    patient_id: str
+    code: str
+    display: str
+    value: str
+    unit: str | None = None
+    effective_date: date | None = None
+
+
+class CreateConditionRequest(BaseModel):
+    patient_id: str
+    code: str
+    display: str
+    clinical_status: str = "active"
+    onset_date: date | None = None
+
+
 class PatientResponse(BaseModel):
     id: str
     family_name: str
