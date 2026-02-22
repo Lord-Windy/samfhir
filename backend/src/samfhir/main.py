@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
 from samfhir.adapters.outbound.redis_cache import RedisCache
-from samfhir.adapters.outbound.stub_fhir_client import StubFhirClient
+from samfhir.adapters.outbound.hapi_fhir_client import HapiFhirClient
 from samfhir.config import Settings
 from samfhir.domain.services.patient_service import PatientService
 
@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     settings: Settings = app.state.settings
     app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     app.state.cache = RedisCache(app.state.redis)
-    app.state.fhir_client = StubFhirClient()
+    app.state.fhir_client = HapiFhirClient(settings.fhir_base_url)
     app.state.patient_service = PatientService(app.state.fhir_client, app.state.cache)
     try:
         yield
