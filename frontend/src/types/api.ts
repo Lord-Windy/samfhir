@@ -89,7 +89,7 @@ export interface ReadinessResponse {
 
 export interface ApiErrorBody {
   error: string;
-  detail?: string;
+  detail?: string | ValidationErrorDetail[];
   patient_id?: string;
 }
 

@@ -2,12 +2,19 @@ import type { ApiErrorBody } from "@/types/api";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
+function formatErrorMessage(body: ApiErrorBody): string {
+  if (Array.isArray(body.detail)) {
+    return body.detail.map((d) => `${d.loc.join(".")}: ${d.msg}`).join("; ");
+  }
+  return body.detail ?? body.error;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
     public body: ApiErrorBody,
   ) {
-    super(body.detail ?? body.error);
+    super(formatErrorMessage(body));
     this.name = "ApiError";
   }
 }
@@ -25,7 +32,12 @@ async function request<T>(
   });
 
   if (!res.ok) {
-    const body = (await res.json()) as ApiErrorBody;
+    let body: ApiErrorBody;
+    try {
+      body = (await res.json()) as ApiErrorBody;
+    } catch {
+      throw new ApiError(res.status, { error: res.statusText });
+    }
     throw new ApiError(res.status, body);
   }
 
