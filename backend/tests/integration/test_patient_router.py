@@ -163,6 +163,34 @@ async def test_create_observation_invalid_patient_returns_404(
     assert resp.json()["error"] == "patient_not_found"
 
 
+async def test_create_observation_missing_fields_returns_422(
+    test_client: httpx.AsyncClient,
+):
+    resp = await test_client.post(
+        "/api/v1/observations",
+        json={
+            "patient_id": PATIENT_ID,
+            "code": "8867-4",
+            "display": "Heart rate",
+        },
+    )
+    assert resp.status_code == 422
+    assert "detail" in resp.json()
+
+
+async def test_create_condition_missing_fields_returns_422(
+    test_client: httpx.AsyncClient,
+):
+    resp = await test_client.post(
+        "/api/v1/conditions",
+        json={
+            "patient_id": PATIENT_ID,
+        },
+    )
+    assert resp.status_code == 422
+    assert "detail" in resp.json()
+
+
 async def test_create_condition_invalid_patient_returns_404(
     test_client: httpx.AsyncClient,
 ):
