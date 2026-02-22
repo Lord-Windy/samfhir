@@ -1,4 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createBrowserRouter, RouterProvider } from "react-router"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { AppLayout, ErrorBoundary } from "@/components/layout"
+import { SearchPage, CacheStatsPage } from "@/pages"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -10,17 +13,28 @@ const queryClient = new QueryClient({
   },
 })
 
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <AppLayout />,
+    errorElement: <ErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <SearchPage />,
+      },
+      {
+        path: "cache",
+        element: <CacheStatsPage />,
+      },
+    ],
+  },
+])
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="container mx-auto py-8">
-          <h1 className="text-3xl font-bold">SamFHIR</h1>
-          <p className="mt-2 text-muted-foreground">
-            FHIR R4 Patient Data Viewer
-          </p>
-        </div>
-      </div>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   )
 }

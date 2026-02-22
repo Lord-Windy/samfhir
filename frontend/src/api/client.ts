@@ -10,12 +10,14 @@ function formatErrorMessage(body: ApiErrorBody): string {
 }
 
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public body: ApiErrorBody,
-  ) {
+  status: number
+  body: ApiErrorBody
+
+  constructor(status: number, body: ApiErrorBody) {
     super(formatErrorMessage(body));
     this.name = "ApiError";
+    this.status = status;
+    this.body = body;
   }
 }
 
