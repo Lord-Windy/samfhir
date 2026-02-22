@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from samfhir.adapters.inbound.api import fhir_router, health_router, patient_router
 from samfhir.adapters.inbound.api.patient_router import write_router
+from samfhir.adapters.inbound.api.seed_router import router as seed_router
 from samfhir.adapters.outbound.stub_fhir_client import StubFhirClient
 from samfhir.config import Settings
 from samfhir.domain.models.observation import (
@@ -196,6 +197,7 @@ async def test_client(mock_cache_port: MockCachePort):
     app.include_router(patient_router)
     app.include_router(fhir_router)
     app.include_router(write_router)
+    app.include_router(seed_router)
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

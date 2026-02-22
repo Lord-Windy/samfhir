@@ -1,14 +1,20 @@
 import asyncio
 from datetime import date
 
-from fhirpy import AsyncFHIRClient
+import httpx
 
 from samfhir.config import Settings
 
+SNOMED_SYSTEM = "http://snomed.info/sct"
+RXNORM_SYSTEM = "http://www.nlm.nih.gov/research/umls/rxnorm"
+LOINC_SYSTEM = "http://loinc.org"
+CLINICAL_STATUS_SYSTEM = "http://terminology.hl7.org/CodeSystem/condition-clinical"
+ALLERGY_CLINICAL_STATUS_SYSTEM = (
+    "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical"
+)
 
 JASON_ARGONAUT_PATIENT = {
     "resourceType": "Patient",
-    "id": None,
     "identifier": [
         {"system": "urn:oid:1.2.840.114350.1.13.327.1.7.5.737384.4", "value": "2"}
     ],
@@ -37,21 +43,21 @@ TEST_OBSERVATIONS = [
     {
         "code": "8480-6",
         "display": "Systolic blood pressure",
-        "value": "120",
+        "value": 120.0,
         "unit": "mmHg",
         "effective_date": date(2024, 1, 10),
     },
     {
         "code": "8462-4",
         "display": "Diastolic blood pressure",
-        "value": "80",
+        "value": 80.0,
         "unit": "mmHg",
         "effective_date": date(2024, 1, 10),
     },
     {
         "code": "4548-4",
         "display": "Hemoglobin A1c/Hemoglobin.total in Blood",
-        "value": "7.2",
+        "value": 7.2,
         "unit": "%",
         "effective_date": date(2024, 1, 10),
     },
@@ -85,116 +91,115 @@ TEST_ALLERGIES = [
     },
 ]
 
-SNOMED_SYSTEM = "http://snomed.info/sct"
-RXNORM_SYSTEM = "http://www.nlm.nih.gov/research/umls/rxnorm"
-LOINC_SYSTEM = "http://loinc.org"
-CLINICAL_STATUS_SYSTEM = "http://terminology.hl7.org/CodeSystem/condition-clinical"
-ALLERGY_CLINICAL_STATUS_SYSTEM = (
-    "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical"
-)
+
+async def _post_resource(
+    client: httpx.AsyncClient, base_url: str, resource: dict
+) -> dict:
+    resp = await client.post(
+        f"{base_url}/{resource['resourceType']}",
+        json=resource,
+        headers={"Content-Type": "application/fhir+json"},
+    )
+    resp.raise_for_status()
+    return resp.json()
 
 
-async def seed_hapi(base_url: str | None = None) -> str:
-    settings = Settings()
-    fhir_base = base_url or settings.fhir_base_url
-    client = AsyncFHIRClient(url=fhir_base)
+async def seed_hapi(base_url: str) -> str:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        result = await _post_resource(client, base_url, JASON_ARGONAUT_PATIENT)
+        patient_id = result["id"]
+        print(f"Created patient: {patient_id}")
 
-    patient_data = JASON_ARGONAUT_PATIENT.copy()
-    del patient_data["id"]
-    patient_resource = client.resource("Patient", **patient_data)
-    await patient_resource.save()
-    patient_id = patient_resource["id"]
-    print(f"Created patient: {patient_id}")
+        for cond in TEST_CONDITIONS:
+            resource = {
+                "resourceType": "Condition",
+                "clinicalStatus": {
+                    "coding": [
+                        {
+                            "system": CLINICAL_STATUS_SYSTEM,
+                            "code": cond["clinical_status"],
+                        }
+                    ]
+                },
+                "code": {
+                    "coding": [
+                        {
+                            "system": SNOMED_SYSTEM,
+                            "code": cond["code"],
+                            "display": cond["display"],
+                        }
+                    ]
+                },
+                "subject": {"reference": f"Patient/{patient_id}"},
+                "onsetDateTime": cond["onset_date"].isoformat(),
+            }
+            await _post_resource(client, base_url, resource)
+            print(f"  Created condition: {cond['display']}")
 
-    for cond in TEST_CONDITIONS:
-        condition_data = {
-            "resourceType": "Condition",
-            "clinicalStatus": {
-                "coding": [
-                    {"system": CLINICAL_STATUS_SYSTEM, "code": cond["clinical_status"]}
-                ]
-            },
-            "code": {
-                "coding": [
-                    {
-                        "system": SNOMED_SYSTEM,
-                        "code": cond["code"],
-                        "display": cond["display"],
-                    }
-                ]
-            },
-            "subject": {"reference": f"Patient/{patient_id}"},
-        }
-        if cond["onset_date"]:
-            condition_data["onsetDateTime"] = cond["onset_date"].isoformat()
-        await client.resource("Condition", **condition_data).save()
-        print(f"  Created condition: {cond['display']}")
+        for obs in TEST_OBSERVATIONS:
+            resource = {
+                "resourceType": "Observation",
+                "status": "final",
+                "code": {
+                    "coding": [
+                        {
+                            "system": LOINC_SYSTEM,
+                            "code": obs["code"],
+                            "display": obs["display"],
+                        }
+                    ]
+                },
+                "subject": {"reference": f"Patient/{patient_id}"},
+                "valueQuantity": {"value": obs["value"], "unit": obs["unit"]},
+                "effectiveDateTime": obs["effective_date"].isoformat(),
+            }
+            await _post_resource(client, base_url, resource)
+            print(f"  Created observation: {obs['display']}")
 
-    for obs in TEST_OBSERVATIONS:
-        obs_data = {
-            "resourceType": "Observation",
-            "status": "final",
-            "code": {
-                "coding": [
-                    {
-                        "system": LOINC_SYSTEM,
-                        "code": obs["code"],
-                        "display": obs["display"],
-                    }
-                ]
-            },
-            "subject": {"reference": f"Patient/{patient_id}"},
-            "valueQuantity": {"value": float(obs["value"]), "unit": obs["unit"]},
-        }
-        if obs["effective_date"]:
-            obs_data["effectiveDateTime"] = obs["effective_date"].isoformat()
-        await client.resource("Observation", **obs_data).save()
-        print(f"  Created observation: {obs['display']}")
+        for med in TEST_MEDICATIONS:
+            resource = {
+                "resourceType": "MedicationRequest",
+                "status": med["status"],
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": RXNORM_SYSTEM,
+                            "code": med["code"],
+                            "display": med["display"],
+                        }
+                    ]
+                },
+                "subject": {"reference": f"Patient/{patient_id}"},
+            }
+            await _post_resource(client, base_url, resource)
+            print(f"  Created medication: {med['display']}")
 
-    for med in TEST_MEDICATIONS:
-        med_data = {
-            "resourceType": "MedicationRequest",
-            "status": med["status"],
-            "medicationCodeableConcept": {
-                "coding": [
-                    {
-                        "system": RXNORM_SYSTEM,
-                        "code": med["code"],
-                        "display": med["display"],
-                    }
-                ]
-            },
-            "subject": {"reference": f"Patient/{patient_id}"},
-            "intent": "order",
-        }
-        await client.resource("MedicationRequest", **med_data).save()
-        print(f"  Created medication: {med['display']}")
-
-    for allergy in TEST_ALLERGIES:
-        allergy_data = {
-            "resourceType": "AllergyIntolerance",
-            "clinicalStatus": {
-                "coding": [
-                    {
-                        "system": ALLERGY_CLINICAL_STATUS_SYSTEM,
-                        "code": allergy["clinical_status"],
-                    }
-                ]
-            },
-            "criticality": allergy["criticality"],
-            "code": {
-                "coding": [
-                    {
-                        "system": SNOMED_SYSTEM,
-                        "code": allergy["code"],
-                        "display": allergy["display"],
-                    }
-                ]
-            },
-            "patient": {"reference": f"Patient/{patient_id}"},
-        }
-        await client.resource("AllergyIntolerance", **allergy_data).save()
-        print(f"  Created allergy: {allergy['display']}")
+        for allergy in TEST_ALLERGIES:
+            resource = {
+                "resourceType": "AllergyIntolerance",
+                "clinicalStatus": {
+                    "coding": [
+                        {
+                            "system": ALLERGY_CLINICAL_STATUS_SYSTEM,
+                            "code": allergy["clinical_status"],
+                        }
+                    ]
+                },
+                "criticality": allergy["criticality"],
+                "code": {
+                    "coding": [
+                        {
+                            "system": SNOMED_SYSTEM,
+                            "code": allergy["code"],
+                            "display": allergy["display"],
+                        }
+                    ]
+                },
+                "patient": {"reference": f"Patient/{patient_id}"},
+            }
+            await _post_resource(client, base_url, resource)
+            print(f"  Created allergy: {allergy['display']}")
 
     print("\nSeeding complete!")
     print(f"Patient ID: {patient_id}")
@@ -202,7 +207,8 @@ async def seed_hapi(base_url: str | None = None) -> str:
 
 
 async def main():
-    patient_id = await seed_hapi()
+    settings = Settings()
+    patient_id = await seed_hapi(settings.fhir_base_url)
     print(
         f"\nTest with: curl http://localhost:8000/api/v1/patients/{patient_id}/summary"
     )
