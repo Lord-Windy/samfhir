@@ -1,10 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createBrowserRouter, RouterProvider } from 'react-router'
-import { AppLayout } from './layouts/AppLayout'
-import { SearchPage } from './pages/SearchPage'
+import { createBrowserRouter, RouterProvider } from "react-router"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { AppLayout, ErrorBoundary } from "@/components/layout"
+import { SearchPage, CacheStatsPage } from "@/pages"
 import { DashboardPage } from './pages/DashboardPage'
 import { ObservationFormPage } from './pages/ObservationFormPage'
-import { CacheStatsPage } from './pages/CacheStatsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,22 +17,24 @@ const queryClient = new QueryClient({
 
 const router = createBrowserRouter([
   {
+    path: "/",
     element: <AppLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
-        path: '/',
+        index: true,
         element: <SearchPage />,
       },
       {
-        path: '/patients/:id',
+        path: "patients/:id",
         element: <DashboardPage />,
       },
       {
-        path: '/patients/:id/observations/new',
+        path: "patients/:id/observations/new",
         element: <ObservationFormPage />,
       },
       {
-        path: '/cache',
+        path: "cache",
         element: <CacheStatsPage />,
       },
     ],

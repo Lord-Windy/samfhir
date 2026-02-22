@@ -10,8 +10,8 @@ function formatErrorMessage(body: ApiErrorBody): string {
 }
 
 export class ApiError extends Error {
-  status: number;
-  body: ApiErrorBody;
+  status: number
+  body: ApiErrorBody
 
   constructor(status: number, body: ApiErrorBody) {
     super(formatErrorMessage(body));
