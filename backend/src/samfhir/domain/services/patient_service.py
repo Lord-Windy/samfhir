@@ -157,3 +157,6 @@ class PatientService:
         await self._cache.delete(f"observations:{patient_id}")
         await self._cache.delete(f"medications:{patient_id}")
         await self._cache.delete(f"allergies:{patient_id}")
+
+    async def search_patients(self, name: str | None = None) -> list[Patient]:
+        return await self._fhir.search_patients(name)

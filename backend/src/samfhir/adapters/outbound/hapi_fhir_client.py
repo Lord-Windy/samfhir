@@ -284,3 +284,19 @@ class HapiFhirClient(FhirPort):
             condition.patient_id,
         )
         return _map_condition(result)
+
+    async def search_patients(self, name: str | None = None) -> list[Patient]:
+        search = self._client.resources("Patient")
+        if name:
+            search = search.search(name=name)
+        search = search.limit(100)
+        try:
+            entries = await search.fetch()
+        except OperationOutcome as exc:
+            raise FhirServerError(
+                status_code=_extract_status_code(exc),
+                detail=_extract_operation_outcome_detail(exc),
+            ) from exc
+        except aiohttp.ClientError as exc:
+            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        return [_map_patient(e) for e in entries]
