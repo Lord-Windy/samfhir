@@ -398,3 +398,382 @@ async def test_get_patient_summary_filters_active(client):
     assert summary.active_conditions[0].id == "c1"
     assert len(summary.active_medications) == 1
     assert summary.active_medications[0].id == "m1"
+
+
+# ── create_observation ──
+
+
+async def test_create_observation_success(client):
+    from datetime import date
+
+    from samfhir.domain.models.observation import CreateObservation
+
+    observation_input = CreateObservation(
+        patient_id="patient-1",
+        code="8480-6",
+        display="Systolic Blood Pressure",
+        value="120",
+        unit="mmHg",
+        effective_date=date(2024, 2, 15),
+    )
+
+    saved_resource = {
+        "id": "obs-new",
+        "code": {"coding": [{"code": "8480-6", "display": "Systolic Blood Pressure"}]},
+        "valueQuantity": {"value": 120, "unit": "mmHg"},
+        "effectiveDateTime": "2024-02-15",
+    }
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(return_value=saved_resource)
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    result = await client.create_observation(observation_input)
+
+    assert result.id == "obs-new"
+    assert result.code == "8480-6"
+    assert result.display == "Systolic Blood Pressure"
+    assert result.value == "120"
+    assert result.unit == "mmHg"
+    assert result.effective_date == date(2024, 2, 15)
+
+
+async def test_create_observation_builds_correct_fhir_resource(client):
+    from datetime import date
+
+    from samfhir.domain.models.observation import CreateObservation
+
+    observation_input = CreateObservation(
+        patient_id="patient-1",
+        code="8480-6",
+        display="Systolic Blood Pressure",
+        value="120",
+        unit="mmHg",
+        effective_date=date(2024, 2, 15),
+    )
+
+    captured_kwargs = {}
+
+    def capture_resource(rt, **kwargs):
+        captured_kwargs["resource_type"] = rt
+        captured_kwargs["data"] = kwargs
+        mock_resource = AsyncMock()
+        mock_resource.save = AsyncMock(
+            return_value={
+                "id": "obs-1",
+                "code": {
+                    "coding": [{"code": "8480-6", "display": "Systolic Blood Pressure"}]
+                },
+                "valueQuantity": {"value": 120, "unit": "mmHg"},
+                "effectiveDateTime": "2024-02-15",
+            }
+        )
+        return mock_resource
+
+    client._client.resource = capture_resource
+
+    await client.create_observation(observation_input)
+
+    assert captured_kwargs["resource_type"] == "Observation"
+    data = captured_kwargs["data"]
+    assert data["resourceType"] == "Observation"
+    assert data["status"] == "final"
+    assert data["code"]["coding"][0]["code"] == "8480-6"
+    assert data["code"]["coding"][0]["display"] == "Systolic Blood Pressure"
+    assert data["subject"]["reference"] == "Patient/patient-1"
+    assert data["valueQuantity"]["value"] == 120.0
+    assert data["valueQuantity"]["unit"] == "mmHg"
+    assert data["effectiveDateTime"] == "2024-02-15"
+
+
+async def test_create_observation_without_effective_date(client):
+    from samfhir.domain.models.observation import CreateObservation
+
+    observation_input = CreateObservation(
+        patient_id="patient-1",
+        code="8480-6",
+        display="Systolic Blood Pressure",
+        value="120",
+        unit="mmHg",
+        effective_date=None,
+    )
+
+    captured_kwargs = {}
+
+    def capture_resource(rt, **kwargs):
+        captured_kwargs["data"] = kwargs
+        mock_resource = AsyncMock()
+        mock_resource.save = AsyncMock(
+            return_value={
+                "id": "obs-1",
+                "code": {
+                    "coding": [{"code": "8480-6", "display": "Systolic Blood Pressure"}]
+                },
+                "valueQuantity": {"value": 120, "unit": "mmHg"},
+            }
+        )
+        return mock_resource
+
+    client._client.resource = capture_resource
+
+    await client.create_observation(observation_input)
+
+    assert "effectiveDateTime" not in captured_kwargs["data"]
+
+
+async def test_create_observation_resource_not_found_raises_patient_not_found_error(
+    client,
+):
+    from fhirpy.base.exceptions import ResourceNotFound
+
+    from samfhir.domain.models.errors import PatientNotFoundError
+    from samfhir.domain.models.observation import CreateObservation
+
+    observation_input = CreateObservation(
+        patient_id="nonexistent",
+        code="8480-6",
+        display="Test",
+        value="120",
+        unit="mmHg",
+        effective_date=None,
+    )
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(side_effect=ResourceNotFound())
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    with pytest.raises(PatientNotFoundError) as exc_info:
+        await client.create_observation(observation_input)
+    assert exc_info.value.patient_id == "nonexistent"
+
+
+async def test_create_observation_operation_outcome_raises_fhir_server_error(client):
+    from fhirpy.base.exceptions import OperationOutcome
+
+    from samfhir.domain.models.errors import FhirServerError
+    from samfhir.domain.models.observation import CreateObservation
+
+    observation_input = CreateObservation(
+        patient_id="patient-1",
+        code="8480-6",
+        display="Test",
+        value="120",
+        unit="mmHg",
+        effective_date=None,
+    )
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(side_effect=OperationOutcome(reason="Server error"))
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    with pytest.raises(FhirServerError):
+        await client.create_observation(observation_input)
+
+
+async def test_create_observation_connection_error(client):
+    import aiohttp
+
+    from samfhir.domain.models.observation import CreateObservation
+
+    observation_input = CreateObservation(
+        patient_id="patient-1",
+        code="8480-6",
+        display="Test",
+        value="120",
+        unit="mmHg",
+        effective_date=None,
+    )
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(
+        side_effect=aiohttp.ClientConnectionError("Connection refused")
+    )
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    with pytest.raises(ConnectionError):
+        await client.create_observation(observation_input)
+
+
+# ── create_condition ──
+
+
+async def test_create_condition_success(client):
+    from datetime import date
+
+    from samfhir.domain.models.observation import CreateCondition
+
+    condition_input = CreateCondition(
+        patient_id="patient-1",
+        code="44054006",
+        display="Diabetes mellitus",
+        clinical_status="active",
+        onset_date=date(2020, 1, 15),
+    )
+
+    saved_resource = {
+        "id": "cond-new",
+        "code": {"coding": [{"code": "44054006", "display": "Diabetes mellitus"}]},
+        "clinicalStatus": {"coding": [{"code": "active"}]},
+        "onsetDateTime": "2020-01-15",
+    }
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(return_value=saved_resource)
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    result = await client.create_condition(condition_input)
+
+    assert result.id == "cond-new"
+    assert result.code == "44054006"
+    assert result.display == "Diabetes mellitus"
+    assert result.clinical_status == "active"
+    assert result.onset_date == date(2020, 1, 15)
+
+
+async def test_create_condition_builds_correct_fhir_resource(client):
+    from datetime import date
+
+    from samfhir.domain.models.observation import CreateCondition
+
+    condition_input = CreateCondition(
+        patient_id="patient-1",
+        code="44054006",
+        display="Diabetes mellitus",
+        clinical_status="active",
+        onset_date=date(2020, 1, 15),
+    )
+
+    captured_kwargs = {}
+
+    def capture_resource(rt, **kwargs):
+        captured_kwargs["resource_type"] = rt
+        captured_kwargs["data"] = kwargs
+        mock_resource = AsyncMock()
+        mock_resource.save = AsyncMock(
+            return_value={
+                "id": "cond-1",
+                "code": {
+                    "coding": [{"code": "44054006", "display": "Diabetes mellitus"}]
+                },
+                "clinicalStatus": {"coding": [{"code": "active"}]},
+                "onsetDateTime": "2020-01-15",
+            }
+        )
+        return mock_resource
+
+    client._client.resource = capture_resource
+
+    await client.create_condition(condition_input)
+
+    assert captured_kwargs["resource_type"] == "Condition"
+    data = captured_kwargs["data"]
+    assert data["resourceType"] == "Condition"
+    assert data["clinicalStatus"]["coding"][0]["code"] == "active"
+    assert data["code"]["coding"][0]["code"] == "44054006"
+    assert data["code"]["coding"][0]["display"] == "Diabetes mellitus"
+    assert data["subject"]["reference"] == "Patient/patient-1"
+    assert data["onsetDateTime"] == "2020-01-15"
+
+
+async def test_create_condition_without_onset_date(client):
+    from samfhir.domain.models.observation import CreateCondition
+
+    condition_input = CreateCondition(
+        patient_id="patient-1",
+        code="44054006",
+        display="Diabetes mellitus",
+        clinical_status="active",
+        onset_date=None,
+    )
+
+    captured_kwargs = {}
+
+    def capture_resource(rt, **kwargs):
+        captured_kwargs["data"] = kwargs
+        mock_resource = AsyncMock()
+        mock_resource.save = AsyncMock(
+            return_value={
+                "id": "cond-1",
+                "code": {
+                    "coding": [{"code": "44054006", "display": "Diabetes mellitus"}]
+                },
+                "clinicalStatus": {"coding": [{"code": "active"}]},
+            }
+        )
+        return mock_resource
+
+    client._client.resource = capture_resource
+
+    await client.create_condition(condition_input)
+
+    assert "onsetDateTime" not in captured_kwargs["data"]
+
+
+async def test_create_condition_resource_not_found_raises_patient_not_found_error(
+    client,
+):
+    from fhirpy.base.exceptions import ResourceNotFound
+
+    from samfhir.domain.models.errors import PatientNotFoundError
+    from samfhir.domain.models.observation import CreateCondition
+
+    condition_input = CreateCondition(
+        patient_id="nonexistent",
+        code="44054006",
+        display="Test",
+        clinical_status="active",
+        onset_date=None,
+    )
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(side_effect=ResourceNotFound())
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    with pytest.raises(PatientNotFoundError) as exc_info:
+        await client.create_condition(condition_input)
+    assert exc_info.value.patient_id == "nonexistent"
+
+
+async def test_create_condition_operation_outcome_raises_fhir_server_error(client):
+    from fhirpy.base.exceptions import OperationOutcome
+
+    from samfhir.domain.models.errors import FhirServerError
+    from samfhir.domain.models.observation import CreateCondition
+
+    condition_input = CreateCondition(
+        patient_id="patient-1",
+        code="44054006",
+        display="Test",
+        clinical_status="active",
+        onset_date=None,
+    )
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(side_effect=OperationOutcome(reason="Server error"))
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    with pytest.raises(FhirServerError):
+        await client.create_condition(condition_input)
+
+
+async def test_create_condition_connection_error(client):
+    import aiohttp
+
+    from samfhir.domain.models.observation import CreateCondition
+
+    condition_input = CreateCondition(
+        patient_id="patient-1",
+        code="44054006",
+        display="Test",
+        clinical_status="active",
+        onset_date=None,
+    )
+
+    mock_resource = AsyncMock()
+    mock_resource.save = AsyncMock(
+        side_effect=aiohttp.ClientConnectionError("Connection refused")
+    )
+    client._client.resource = lambda rt, **kw: mock_resource
+
+    with pytest.raises(ConnectionError):
+        await client.create_condition(condition_input)
