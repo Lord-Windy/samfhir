@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 
 from fhirpy import AsyncFHIRClient
@@ -112,11 +113,11 @@ class HapiFhirClient(FhirPort):
 
     async def get_patient_summary(self, patient_id: str) -> PatientSummary:
         patient = await self.get_patient(patient_id)
-        conditions, observations, medications, allergies = (
-            await self.search_conditions(patient_id),
-            await self.search_observations(patient_id),
-            await self.search_medications(patient_id),
-            await self.search_allergies(patient_id),
+        conditions, observations, medications, allergies = await asyncio.gather(
+            self.search_conditions(patient_id),
+            self.search_observations(patient_id),
+            self.search_medications(patient_id),
+            self.search_allergies(patient_id),
         )
         active_conditions = [c for c in conditions if c.clinical_status == "active"]
         active_medications = [m for m in medications if m.status == "active"]
