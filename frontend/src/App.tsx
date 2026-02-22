@@ -4,6 +4,7 @@ import { AppLayout, ErrorBoundary } from "@/components/layout"
 import { SearchPage, CacheStatsPage } from "@/pages"
 import { DashboardPage } from './pages/DashboardPage'
 import { ObservationFormPage } from './pages/ObservationFormPage'
+import { Toaster } from "@/components/ui/sonner"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,6 +46,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
   )
 }
