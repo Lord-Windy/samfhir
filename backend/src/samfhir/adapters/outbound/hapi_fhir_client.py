@@ -103,6 +103,48 @@ def _map_allergy(data: dict) -> Allergy:
     )
 
 
+_FHIR_ISSUE_TYPE_TO_HTTP: dict[str, int] = {
+    "invalid": 400,
+    "structure": 400,
+    "required": 400,
+    "value": 400,
+    "invariant": 400,
+    "security": 403,
+    "login": 401,
+    "forbidden": 403,
+    "suppressed": 403,
+    "not-found": 404,
+    "deleted": 410,
+    "conflict": 409,
+    "duplicate": 409,
+    "lock": 423,
+    "multiple-matches": 412,
+    "not-supported": 422,
+    "processing": 500,
+    "exception": 500,
+    "timeout": 504,
+    "throttled": 429,
+    "transient": 503,
+    "informational": 200,
+    "too-costly": 422,
+    "business-rule": 422,
+    "too-long": 400,
+    "code-invalid": 400,
+    "extension": 400,
+}
+
+
+def _extract_status_code(exc: OperationOutcome) -> int:
+    """Derive an HTTP status code from a fhirpy OperationOutcome's issue type."""
+    resource = getattr(exc, "resource", None)
+    if resource and isinstance(resource, dict):
+        issues = resource.get("issue", [])
+        if issues:
+            code = issues[0].get("code", "")
+            return _FHIR_ISSUE_TYPE_TO_HTTP.get(code, 500)
+    return 500
+
+
 def _extract_operation_outcome_detail(exc: OperationOutcome) -> str:
     """Pull a human-readable message from a fhirpy OperationOutcome exception."""
     resource = getattr(exc, "resource", None)
@@ -114,6 +156,20 @@ def _extract_operation_outcome_detail(exc: OperationOutcome) -> str:
         if isinstance(text, dict):
             return text.get("div", str(exc))
     return str(exc)
+
+
+async def _handle_fhir_errors(coro, patient_id: str):
+    try:
+        return await coro
+    except ResourceNotFound:
+        raise PatientNotFoundError(patient_id)
+    except OperationOutcome as exc:
+        raise FhirServerError(
+            status_code=_extract_status_code(exc),
+            detail=_extract_operation_outcome_detail(exc),
+        ) from exc
+    except aiohttp.ClientError as exc:
+        raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
 
 
 LOINC_SYSTEM_URI = "http://loinc.org"
@@ -128,17 +184,8 @@ class HapiFhirClient(FhirPort):
         self._client = AsyncFHIRClient(url=base_url)
 
     async def get_patient(self, patient_id: str) -> Patient:
-        try:
-            ref = self._client.reference("Patient", patient_id)
-            resource = await ref.to_resource()
-        except ResourceNotFound:
-            raise PatientNotFoundError(patient_id)
-        except OperationOutcome as exc:
-            raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
-            ) from exc
-        except aiohttp.ClientError as exc:
-            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        ref = self._client.reference("Patient", patient_id)
+        resource = await _handle_fhir_errors(ref.to_resource(), patient_id)
         return _map_patient(resource)
 
     async def get_patient_summary(self, patient_id: str) -> PatientSummary:
@@ -160,21 +207,10 @@ class HapiFhirClient(FhirPort):
         )
 
     async def _search(self, resource_type: str, patient_id: str) -> list[dict]:
-        try:
-            resources = (
-                self._client.resources(resource_type)
-                .search(patient=patient_id)
-                .limit(100)
-            )
-            return await resources.fetch()
-        except ResourceNotFound:
-            raise PatientNotFoundError(patient_id)
-        except OperationOutcome as exc:
-            raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
-            ) from exc
-        except aiohttp.ClientError as exc:
-            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        resources = (
+            self._client.resources(resource_type).search(patient=patient_id).limit(100)
+        )
+        return await _handle_fhir_errors(resources.fetch(), patient_id)
 
     async def search_conditions(self, patient_id: str) -> list[Condition]:
         entries = await self._search("Condition", patient_id)
@@ -213,16 +249,10 @@ class HapiFhirClient(FhirPort):
         }
         if observation.effective_date is not None:
             resource_data["effectiveDateTime"] = observation.effective_date.isoformat()
-        try:
-            result = await self._client.resource("Observation", **resource_data).save()
-        except ResourceNotFound:
-            raise PatientNotFoundError(observation.patient_id)
-        except OperationOutcome as exc:
-            raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
-            ) from exc
-        except aiohttp.ClientError as exc:
-            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        result = await _handle_fhir_errors(
+            self._client.resource("Observation", **resource_data).save(),
+            observation.patient_id,
+        )
         return _map_observation(result)
 
     async def create_condition(self, condition: CreateCondition) -> Condition:
@@ -249,14 +279,8 @@ class HapiFhirClient(FhirPort):
         }
         if condition.onset_date is not None:
             resource_data["onsetDateTime"] = condition.onset_date.isoformat()
-        try:
-            result = await self._client.resource("Condition", **resource_data).save()
-        except ResourceNotFound:
-            raise PatientNotFoundError(condition.patient_id)
-        except OperationOutcome as exc:
-            raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
-            ) from exc
-        except aiohttp.ClientError as exc:
-            raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
+        result = await _handle_fhir_errors(
+            self._client.resource("Condition", **resource_data).save(),
+            condition.patient_id,
+        )
         return _map_condition(result)
