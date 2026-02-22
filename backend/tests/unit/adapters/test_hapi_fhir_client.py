@@ -3,7 +3,12 @@
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import pytest
+from fhirpy.base.exceptions import OperationOutcome, ResourceNotFound
+
+from samfhir.domain.models.errors import FhirServerError, PatientNotFoundError
+from samfhir.domain.models.observation import CreateCondition, CreateObservation
 
 from samfhir.adapters.outbound.hapi_fhir_client import (
     HapiFhirClient,
@@ -239,10 +244,6 @@ async def test_get_patient_calls_fhirpy(client):
 
 
 async def test_get_patient_not_found_raises_patient_not_found_error(client):
-    from fhirpy.base.exceptions import ResourceNotFound
-
-    from samfhir.domain.models.errors import PatientNotFoundError
-
     mock_ref = AsyncMock()
     mock_ref.to_resource.side_effect = ResourceNotFound()
     client._client.reference = lambda *a, **kw: mock_ref
@@ -253,10 +254,6 @@ async def test_get_patient_not_found_raises_patient_not_found_error(client):
 
 
 async def test_get_patient_operation_outcome_raises_fhir_server_error(client):
-    from fhirpy.base.exceptions import OperationOutcome
-
-    from samfhir.domain.models.errors import FhirServerError
-
     mock_ref = AsyncMock()
     mock_ref.to_resource.side_effect = OperationOutcome(reason="Server error")
     client._client.reference = lambda *a, **kw: mock_ref
@@ -266,8 +263,6 @@ async def test_get_patient_operation_outcome_raises_fhir_server_error(client):
 
 
 async def test_get_patient_connection_error(client):
-    import aiohttp
-
     mock_ref = AsyncMock()
     mock_ref.to_resource.side_effect = aiohttp.ClientConnectionError(
         "Connection refused"
@@ -279,10 +274,6 @@ async def test_get_patient_connection_error(client):
 
 
 async def test_search_not_found_raises_patient_not_found_error(client):
-    from fhirpy.base.exceptions import ResourceNotFound
-
-    from samfhir.domain.models.errors import PatientNotFoundError
-
     mock_searchset = MagicMock()
     mock_searchset.search.return_value = mock_searchset
     mock_searchset.limit.return_value = mock_searchset
@@ -294,10 +285,6 @@ async def test_search_not_found_raises_patient_not_found_error(client):
 
 
 async def test_search_operation_outcome_raises_fhir_server_error(client):
-    from fhirpy.base.exceptions import OperationOutcome
-
-    from samfhir.domain.models.errors import FhirServerError
-
     mock_searchset = MagicMock()
     mock_searchset.search.return_value = mock_searchset
     mock_searchset.limit.return_value = mock_searchset
@@ -404,10 +391,6 @@ async def test_get_patient_summary_filters_active(client):
 
 
 async def test_create_observation_success(client):
-    from datetime import date
-
-    from samfhir.domain.models.observation import CreateObservation
-
     observation_input = CreateObservation(
         patient_id="patient-1",
         code="8480-6",
@@ -439,10 +422,6 @@ async def test_create_observation_success(client):
 
 
 async def test_create_observation_builds_correct_fhir_resource(client):
-    from datetime import date
-
-    from samfhir.domain.models.observation import CreateObservation
-
     observation_input = CreateObservation(
         patient_id="patient-1",
         code="8480-6",
@@ -487,8 +466,6 @@ async def test_create_observation_builds_correct_fhir_resource(client):
 
 
 async def test_create_observation_without_effective_date(client):
-    from samfhir.domain.models.observation import CreateObservation
-
     observation_input = CreateObservation(
         patient_id="patient-1",
         code="8480-6",
@@ -524,11 +501,6 @@ async def test_create_observation_without_effective_date(client):
 async def test_create_observation_resource_not_found_raises_patient_not_found_error(
     client,
 ):
-    from fhirpy.base.exceptions import ResourceNotFound
-
-    from samfhir.domain.models.errors import PatientNotFoundError
-    from samfhir.domain.models.observation import CreateObservation
-
     observation_input = CreateObservation(
         patient_id="nonexistent",
         code="8480-6",
@@ -545,14 +517,10 @@ async def test_create_observation_resource_not_found_raises_patient_not_found_er
     with pytest.raises(PatientNotFoundError) as exc_info:
         await client.create_observation(observation_input)
     assert exc_info.value.patient_id == "nonexistent"
+    mock_resource.save.assert_awaited_once()
 
 
 async def test_create_observation_operation_outcome_raises_fhir_server_error(client):
-    from fhirpy.base.exceptions import OperationOutcome
-
-    from samfhir.domain.models.errors import FhirServerError
-    from samfhir.domain.models.observation import CreateObservation
-
     observation_input = CreateObservation(
         patient_id="patient-1",
         code="8480-6",
@@ -568,13 +536,10 @@ async def test_create_observation_operation_outcome_raises_fhir_server_error(cli
 
     with pytest.raises(FhirServerError):
         await client.create_observation(observation_input)
+    mock_resource.save.assert_awaited_once()
 
 
 async def test_create_observation_connection_error(client):
-    import aiohttp
-
-    from samfhir.domain.models.observation import CreateObservation
-
     observation_input = CreateObservation(
         patient_id="patient-1",
         code="8480-6",
@@ -592,16 +557,13 @@ async def test_create_observation_connection_error(client):
 
     with pytest.raises(ConnectionError):
         await client.create_observation(observation_input)
+    mock_resource.save.assert_awaited_once()
 
 
 # ── create_condition ──
 
 
 async def test_create_condition_success(client):
-    from datetime import date
-
-    from samfhir.domain.models.observation import CreateCondition
-
     condition_input = CreateCondition(
         patient_id="patient-1",
         code="44054006",
@@ -631,10 +593,6 @@ async def test_create_condition_success(client):
 
 
 async def test_create_condition_builds_correct_fhir_resource(client):
-    from datetime import date
-
-    from samfhir.domain.models.observation import CreateCondition
-
     condition_input = CreateCondition(
         patient_id="patient-1",
         code="44054006",
@@ -676,8 +634,6 @@ async def test_create_condition_builds_correct_fhir_resource(client):
 
 
 async def test_create_condition_without_onset_date(client):
-    from samfhir.domain.models.observation import CreateCondition
-
     condition_input = CreateCondition(
         patient_id="patient-1",
         code="44054006",
@@ -712,11 +668,6 @@ async def test_create_condition_without_onset_date(client):
 async def test_create_condition_resource_not_found_raises_patient_not_found_error(
     client,
 ):
-    from fhirpy.base.exceptions import ResourceNotFound
-
-    from samfhir.domain.models.errors import PatientNotFoundError
-    from samfhir.domain.models.observation import CreateCondition
-
     condition_input = CreateCondition(
         patient_id="nonexistent",
         code="44054006",
@@ -732,14 +683,10 @@ async def test_create_condition_resource_not_found_raises_patient_not_found_erro
     with pytest.raises(PatientNotFoundError) as exc_info:
         await client.create_condition(condition_input)
     assert exc_info.value.patient_id == "nonexistent"
+    mock_resource.save.assert_awaited_once()
 
 
 async def test_create_condition_operation_outcome_raises_fhir_server_error(client):
-    from fhirpy.base.exceptions import OperationOutcome
-
-    from samfhir.domain.models.errors import FhirServerError
-    from samfhir.domain.models.observation import CreateCondition
-
     condition_input = CreateCondition(
         patient_id="patient-1",
         code="44054006",
@@ -754,13 +701,10 @@ async def test_create_condition_operation_outcome_raises_fhir_server_error(clien
 
     with pytest.raises(FhirServerError):
         await client.create_condition(condition_input)
+    mock_resource.save.assert_awaited_once()
 
 
 async def test_create_condition_connection_error(client):
-    import aiohttp
-
-    from samfhir.domain.models.observation import CreateCondition
-
     condition_input = CreateCondition(
         patient_id="patient-1",
         code="44054006",
@@ -777,3 +721,4 @@ async def test_create_condition_connection_error(client):
 
     with pytest.raises(ConnectionError):
         await client.create_condition(condition_input)
+    mock_resource.save.assert_awaited_once()
