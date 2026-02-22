@@ -116,6 +116,13 @@ def _extract_operation_outcome_detail(exc: OperationOutcome) -> str:
     return str(exc)
 
 
+LOINC_SYSTEM_URI = "http://loinc.org"
+SNOMED_SYSTEM_URI = "http://snomed.info/sct"
+CONDITION_CLINICAL_STATUS_SYSTEM_URI = (
+    "http://terminology.hl7.org/CodeSystem/condition-clinical"
+)
+
+
 class HapiFhirClient(FhirPort):
     def __init__(self, base_url: str) -> None:
         self._client = AsyncFHIRClient(url=base_url)
@@ -191,7 +198,11 @@ class HapiFhirClient(FhirPort):
             "status": "final",
             "code": {
                 "coding": [
-                    {"code": observation.code, "display": observation.display}
+                    {
+                        "system": LOINC_SYSTEM_URI,
+                        "code": observation.code,
+                        "display": observation.display,
+                    }
                 ]
             },
             "subject": {"reference": f"Patient/{observation.patient_id}"},
@@ -201,13 +212,9 @@ class HapiFhirClient(FhirPort):
             },
         }
         if observation.effective_date is not None:
-            resource_data["effectiveDateTime"] = (
-                observation.effective_date.isoformat()
-            )
+            resource_data["effectiveDateTime"] = observation.effective_date.isoformat()
         try:
-            result = await self._client.resource(
-                "Observation", **resource_data
-            ).save()
+            result = await self._client.resource("Observation", **resource_data).save()
         except ResourceNotFound:
             raise PatientNotFoundError(observation.patient_id)
         except OperationOutcome as exc:
@@ -222,11 +229,20 @@ class HapiFhirClient(FhirPort):
         resource_data: dict = {
             "resourceType": "Condition",
             "clinicalStatus": {
-                "coding": [{"code": condition.clinical_status}]
+                "coding": [
+                    {
+                        "system": CONDITION_CLINICAL_STATUS_SYSTEM_URI,
+                        "code": condition.clinical_status,
+                    }
+                ]
             },
             "code": {
                 "coding": [
-                    {"code": condition.code, "display": condition.display}
+                    {
+                        "system": SNOMED_SYSTEM_URI,
+                        "code": condition.code,
+                        "display": condition.display,
+                    }
                 ]
             },
             "subject": {"reference": f"Patient/{condition.patient_id}"},
@@ -234,9 +250,7 @@ class HapiFhirClient(FhirPort):
         if condition.onset_date is not None:
             resource_data["onsetDateTime"] = condition.onset_date.isoformat()
         try:
-            result = await self._client.resource(
-                "Condition", **resource_data
-            ).save()
+            result = await self._client.resource("Condition", **resource_data).save()
         except ResourceNotFound:
             raise PatientNotFoundError(condition.patient_id)
         except OperationOutcome as exc:
