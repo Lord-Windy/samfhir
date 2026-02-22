@@ -129,6 +129,18 @@ class MockFhirPort(FhirPort):
             onset_date=condition.onset_date,
         )
 
+    async def search_patients(self, name: str | None = None) -> list[Patient]:
+        self._track("search_patients")
+        if name is None:
+            return [self._patient]
+        name_lower = name.lower()
+        if (
+            name_lower in self._patient.family_name.lower()
+            or name_lower in self._patient.given_name.lower()
+        ):
+            return [self._patient]
+        return []
+
 
 class MockCachePort(CachePort):
     """In-memory CachePort with hit/miss tracking."""

@@ -36,6 +36,15 @@ def _patient_to_response(patient: Patient) -> PatientResponse:
     )
 
 
+@router.get("", response_model=list[PatientResponse])
+async def search_patients(
+    name: str | None = None,
+    service: PatientService = Depends(get_patient_service),
+) -> list[PatientResponse]:
+    patients = await service.search_patients(name)
+    return [_patient_to_response(p) for p in patients]
+
+
 def _condition_to_response(condition: Condition) -> ConditionResponse:
     return ConditionResponse(
         id=condition.id,

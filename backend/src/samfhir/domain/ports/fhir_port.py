@@ -39,3 +39,6 @@ class FhirPort(ABC):
 
     @abstractmethod
     async def create_condition(self, condition: "CreateCondition") -> "Condition": ...
+
+    @abstractmethod
+    async def search_patients(self, name: str | None = None) -> list["Patient"]: ...

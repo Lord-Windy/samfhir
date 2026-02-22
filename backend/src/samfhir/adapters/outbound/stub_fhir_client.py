@@ -186,3 +186,14 @@ class StubFhirClient(FhirPort):
         )
         self._conditions.append(new_cond)
         return new_cond
+
+    async def search_patients(self, name: str | None = None) -> list[Patient]:
+        if name is None:
+            return [self._patient]
+        name_lower = name.lower()
+        if (
+            name_lower in self._patient.family_name.lower()
+            or name_lower in self._patient.given_name.lower()
+        ):
+            return [self._patient]
+        return []
