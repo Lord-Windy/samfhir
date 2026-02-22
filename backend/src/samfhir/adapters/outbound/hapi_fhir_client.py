@@ -103,6 +103,48 @@ def _map_allergy(data: dict) -> Allergy:
     )
 
 
+_FHIR_ISSUE_TYPE_TO_HTTP: dict[str, int] = {
+    "invalid": 400,
+    "structure": 400,
+    "required": 400,
+    "value": 400,
+    "invariant": 400,
+    "security": 403,
+    "login": 401,
+    "forbidden": 403,
+    "suppressed": 403,
+    "not-found": 404,
+    "deleted": 410,
+    "conflict": 409,
+    "duplicate": 409,
+    "lock": 423,
+    "multiple-matches": 412,
+    "not-supported": 422,
+    "processing": 500,
+    "exception": 500,
+    "timeout": 504,
+    "throttled": 429,
+    "transient": 503,
+    "informational": 200,
+    "too-costly": 422,
+    "business-rule": 422,
+    "too-long": 400,
+    "code-invalid": 400,
+    "extension": 400,
+}
+
+
+def _extract_status_code(exc: OperationOutcome) -> int:
+    """Derive an HTTP status code from a fhirpy OperationOutcome's issue type."""
+    resource = getattr(exc, "resource", None)
+    if resource and isinstance(resource, dict):
+        issues = resource.get("issue", [])
+        if issues:
+            code = issues[0].get("code", "")
+            return _FHIR_ISSUE_TYPE_TO_HTTP.get(code, 500)
+    return 500
+
+
 def _extract_operation_outcome_detail(exc: OperationOutcome) -> str:
     """Pull a human-readable message from a fhirpy OperationOutcome exception."""
     resource = getattr(exc, "resource", None)
@@ -128,7 +170,8 @@ class HapiFhirClient(FhirPort):
             raise PatientNotFoundError(patient_id)
         except OperationOutcome as exc:
             raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
+                status_code=_extract_status_code(exc),
+                detail=_extract_operation_outcome_detail(exc)
             ) from exc
         except aiohttp.ClientError as exc:
             raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
@@ -164,7 +207,8 @@ class HapiFhirClient(FhirPort):
             raise PatientNotFoundError(patient_id)
         except OperationOutcome as exc:
             raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
+                status_code=_extract_status_code(exc),
+                detail=_extract_operation_outcome_detail(exc)
             ) from exc
         except aiohttp.ClientError as exc:
             raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
@@ -212,7 +256,8 @@ class HapiFhirClient(FhirPort):
             raise PatientNotFoundError(observation.patient_id)
         except OperationOutcome as exc:
             raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
+                status_code=_extract_status_code(exc),
+                detail=_extract_operation_outcome_detail(exc)
             ) from exc
         except aiohttp.ClientError as exc:
             raise ConnectionError(f"FHIR server unreachable: {exc}") from exc
@@ -241,7 +286,8 @@ class HapiFhirClient(FhirPort):
             raise PatientNotFoundError(condition.patient_id)
         except OperationOutcome as exc:
             raise FhirServerError(
-                status_code=0, detail=_extract_operation_outcome_detail(exc)
+                status_code=_extract_status_code(exc),
+                detail=_extract_operation_outcome_detail(exc)
             ) from exc
         except aiohttp.ClientError as exc:
             raise ConnectionError(f"FHIR server unreachable: {exc}") from exc

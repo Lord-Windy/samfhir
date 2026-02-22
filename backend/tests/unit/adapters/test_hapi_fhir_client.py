@@ -7,6 +7,7 @@ import pytest
 
 from samfhir.adapters.outbound.hapi_fhir_client import (
     HapiFhirClient,
+    _extract_status_code,
     _map_allergy,
     _map_condition,
     _map_medication,
@@ -212,6 +213,55 @@ def test_map_allergy_missing_criticality():
     assert a.criticality is None
 
 
+# ── _extract_status_code ──
+
+
+def test_extract_status_code_invalid_issue_type():
+    from fhirpy.base.exceptions import OperationOutcome
+
+    exc = OperationOutcome(reason="Bad input", code="invalid")
+    assert _extract_status_code(exc) == 400
+
+
+def test_extract_status_code_exception_issue_type():
+    from fhirpy.base.exceptions import OperationOutcome
+
+    exc = OperationOutcome(reason="Server crash", code="exception")
+    assert _extract_status_code(exc) == 500
+
+
+def test_extract_status_code_from_resource_dict():
+    from fhirpy.base.exceptions import OperationOutcome
+
+    exc = OperationOutcome(
+        resource={
+            "resourceType": "OperationOutcome",
+            "issue": [{"severity": "error", "code": "throttled", "diagnostics": "Rate limited"}],
+        }
+    )
+    assert _extract_status_code(exc) == 429
+
+
+def test_extract_status_code_unknown_code_defaults_to_500():
+    from fhirpy.base.exceptions import OperationOutcome
+
+    exc = OperationOutcome(
+        resource={
+            "resourceType": "OperationOutcome",
+            "issue": [{"severity": "error", "code": "unknown-code"}],
+        }
+    )
+    assert _extract_status_code(exc) == 500
+
+
+def test_extract_status_code_no_resource_defaults_to_500():
+    from fhirpy.base.exceptions import OperationOutcome
+
+    exc = OperationOutcome.__new__(OperationOutcome)
+    # No resource attribute at all
+    assert _extract_status_code(exc) == 500
+
+
 # ── HapiFhirClient integration (mocked fhirpy) ──
 
 
@@ -261,8 +311,31 @@ async def test_get_patient_operation_outcome_raises_fhir_server_error(client):
     mock_ref.to_resource.side_effect = OperationOutcome(reason="Server error")
     client._client.reference = lambda *a, **kw: mock_ref
 
-    with pytest.raises(FhirServerError):
+    with pytest.raises(FhirServerError) as exc_info:
         await client.get_patient("test-123")
+    # Default issue type is "invalid" → 400
+    assert exc_info.value.status_code == 400
+
+
+async def test_get_patient_operation_outcome_propagates_exception_status(client):
+    from fhirpy.base.exceptions import OperationOutcome
+
+    from samfhir.domain.models.errors import FhirServerError
+
+    mock_ref = AsyncMock()
+    mock_ref.to_resource.side_effect = OperationOutcome(
+        resource={
+            "resourceType": "OperationOutcome",
+            "issue": [
+                {"severity": "error", "code": "exception", "diagnostics": "Internal"}
+            ],
+        }
+    )
+    client._client.reference = lambda *a, **kw: mock_ref
+
+    with pytest.raises(FhirServerError) as exc_info:
+        await client.get_patient("test-123")
+    assert exc_info.value.status_code == 500
 
 
 async def test_get_patient_connection_error(client):
@@ -306,8 +379,10 @@ async def test_search_operation_outcome_raises_fhir_server_error(client):
     )
     client._client.resources = lambda rt: mock_searchset
 
-    with pytest.raises(FhirServerError):
+    with pytest.raises(FhirServerError) as exc_info:
         await client.search_conditions("test-123")
+    # Default issue type is "invalid" → 400
+    assert exc_info.value.status_code == 400
 
 
 async def test_search_conditions(client):
