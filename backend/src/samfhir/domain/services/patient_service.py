@@ -5,6 +5,8 @@ from datetime import date
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
+    CreateCondition,
+    CreateObservation,
     Medication,
     Observation,
 )
@@ -63,9 +65,15 @@ class PatientService:
             data = json.loads(cached)
             return PatientSummary(
                 patient=_from_dict(Patient, data["patient"]),
-                active_conditions=[_from_dict(Condition, c) for c in data["active_conditions"]],
-                recent_observations=[_from_dict(Observation, o) for o in data["recent_observations"]],
-                active_medications=[_from_dict(Medication, m) for m in data["active_medications"]],
+                active_conditions=[
+                    _from_dict(Condition, c) for c in data["active_conditions"]
+                ],
+                recent_observations=[
+                    _from_dict(Observation, o) for o in data["recent_observations"]
+                ],
+                active_medications=[
+                    _from_dict(Medication, m) for m in data["active_medications"]
+                ],
                 allergies=[_from_dict(Allergy, a) for a in data["allergies"]],
             )
         summary = await self._fhir.get_patient_summary(patient_id)
@@ -78,7 +86,13 @@ class PatientService:
         if cached is not None:
             return [_from_dict(Condition, c) for c in json.loads(cached)]
         conditions = await self._fhir.search_conditions(patient_id)
-        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(c) for c in conditions], default=_date_default), self._ttl)
+        await self._cache.set(
+            cache_key,
+            json.dumps(
+                [dataclasses.asdict(c) for c in conditions], default=_date_default
+            ),
+            self._ttl,
+        )
         return conditions
 
     async def search_observations(self, patient_id: str) -> list[Observation]:
@@ -87,7 +101,13 @@ class PatientService:
         if cached is not None:
             return [_from_dict(Observation, o) for o in json.loads(cached)]
         observations = await self._fhir.search_observations(patient_id)
-        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(o) for o in observations], default=_date_default), self._ttl)
+        await self._cache.set(
+            cache_key,
+            json.dumps(
+                [dataclasses.asdict(o) for o in observations], default=_date_default
+            ),
+            self._ttl,
+        )
         return observations
 
     async def search_medications(self, patient_id: str) -> list[Medication]:
@@ -96,7 +116,13 @@ class PatientService:
         if cached is not None:
             return [_from_dict(Medication, m) for m in json.loads(cached)]
         medications = await self._fhir.search_medications(patient_id)
-        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(m) for m in medications], default=_date_default), self._ttl)
+        await self._cache.set(
+            cache_key,
+            json.dumps(
+                [dataclasses.asdict(m) for m in medications], default=_date_default
+            ),
+            self._ttl,
+        )
         return medications
 
     async def search_allergies(self, patient_id: str) -> list[Allergy]:
@@ -105,8 +131,24 @@ class PatientService:
         if cached is not None:
             return [_from_dict(Allergy, a) for a in json.loads(cached)]
         allergies = await self._fhir.search_allergies(patient_id)
-        await self._cache.set(cache_key, json.dumps([dataclasses.asdict(a) for a in allergies], default=_date_default), self._ttl)
+        await self._cache.set(
+            cache_key,
+            json.dumps(
+                [dataclasses.asdict(a) for a in allergies], default=_date_default
+            ),
+            self._ttl,
+        )
         return allergies
+
+    async def create_observation(self, observation: CreateObservation) -> Observation:
+        result = await self._fhir.create_observation(observation)
+        await self.invalidate_patient_cache(observation.patient_id)
+        return result
+
+    async def create_condition(self, condition: CreateCondition) -> Condition:
+        result = await self._fhir.create_condition(condition)
+        await self.invalidate_patient_cache(condition.patient_id)
+        return result
 
     async def invalidate_patient_cache(self, patient_id: str) -> None:
         await self._cache.delete(f"patient:{patient_id}")

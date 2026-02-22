@@ -11,6 +11,8 @@ from samfhir.config import Settings
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
+    CreateCondition,
+    CreateObservation,
     Medication,
     Observation,
 )
@@ -103,6 +105,27 @@ class MockFhirPort(FhirPort):
     async def search_allergies(self, patient_id: str) -> list[Allergy]:
         self._track("search_allergies")
         return self._allergies
+
+    async def create_observation(self, observation: CreateObservation) -> Observation:
+        self._track("create_observation")
+        return Observation(
+            id="new-obs-1",
+            code=observation.code,
+            display=observation.display,
+            value=observation.value,
+            unit=observation.unit,
+            effective_date=observation.effective_date,
+        )
+
+    async def create_condition(self, condition: CreateCondition) -> Condition:
+        self._track("create_condition")
+        return Condition(
+            id="new-cond-1",
+            code=condition.code,
+            display=condition.display,
+            clinical_status=condition.clinical_status,
+            onset_date=condition.onset_date,
+        )
 
 
 class MockCachePort(CachePort):

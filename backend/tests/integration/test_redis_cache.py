@@ -44,7 +44,7 @@ async def test_delete_removes_key(redis_cache: RedisCache):
 
 async def test_stats_track_hits_and_misses(redis_cache: RedisCache):
     await redis_cache.set("key4", "value4")
-    await redis_cache.get("key4")       # hit
+    await redis_cache.get("key4")  # hit
     await redis_cache.get("nonexistent")  # miss
 
     stats = await redis_cache.stats()

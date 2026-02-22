@@ -5,6 +5,8 @@ if TYPE_CHECKING:
     from samfhir.domain.models.patient import Patient, PatientSummary
     from samfhir.domain.models.observation import (
         Condition,
+        CreateCondition,
+        CreateObservation,
         Observation,
         Medication,
         Allergy,
@@ -29,3 +31,11 @@ class FhirPort(ABC):
 
     @abstractmethod
     async def search_allergies(self, patient_id: str) -> list["Allergy"]: ...
+
+    @abstractmethod
+    async def create_observation(
+        self, observation: "CreateObservation"
+    ) -> "Observation": ...
+
+    @abstractmethod
+    async def create_condition(self, condition: "CreateCondition") -> "Condition": ...

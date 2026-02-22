@@ -9,6 +9,8 @@ from samfhir.domain.models.errors import FhirServerError, PatientNotFoundError
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
+    CreateCondition,
+    CreateObservation,
     Medication,
     Observation,
 )
@@ -182,3 +184,9 @@ class HapiFhirClient(FhirPort):
     async def search_allergies(self, patient_id: str) -> list[Allergy]:
         entries = await self._search("AllergyIntolerance", patient_id)
         return [_map_allergy(e) for e in entries]
+
+    async def create_observation(self, observation: CreateObservation) -> Observation:
+        raise NotImplementedError("Write operations not yet implemented")
+
+    async def create_condition(self, condition: CreateCondition) -> Condition:
+        raise NotImplementedError("Write operations not yet implemented")

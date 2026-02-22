@@ -4,6 +4,8 @@ from samfhir.domain.models.errors import PatientNotFoundError
 from samfhir.domain.models.observation import (
     Allergy,
     Condition,
+    CreateCondition,
+    CreateObservation,
     Medication,
     Observation,
 )
@@ -157,3 +159,30 @@ class StubFhirClient(FhirPort):
         if patient_id != self.JASON_ARGONAUT_ID:
             raise PatientNotFoundError(patient_id)
         return self._allergies
+
+    async def create_observation(self, observation: CreateObservation) -> Observation:
+        if observation.patient_id != self.JASON_ARGONAUT_ID:
+            raise PatientNotFoundError(observation.patient_id)
+        new_obs = Observation(
+            id=f"obs-{len(self._observations) + 1}",
+            code=observation.code,
+            display=observation.display,
+            value=observation.value,
+            unit=observation.unit,
+            effective_date=observation.effective_date,
+        )
+        self._observations.append(new_obs)
+        return new_obs
+
+    async def create_condition(self, condition: CreateCondition) -> Condition:
+        if condition.patient_id != self.JASON_ARGONAUT_ID:
+            raise PatientNotFoundError(condition.patient_id)
+        new_cond = Condition(
+            id=f"cond-{len(self._conditions) + 1}",
+            code=condition.code,
+            display=condition.display,
+            clinical_status=condition.clinical_status,
+            onset_date=condition.onset_date,
+        )
+        self._conditions.append(new_cond)
+        return new_cond

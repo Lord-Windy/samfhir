@@ -37,3 +37,26 @@ class Allergy:
     display: str
     clinical_status: str
     criticality: str | None
+
+
+@dataclass(frozen=True)
+class CreateObservation:
+    """Input for creating an observation. No id — the server assigns it."""
+
+    patient_id: str
+    code: str
+    display: str
+    value: str
+    unit: str | None
+    effective_date: date | None
+
+
+@dataclass(frozen=True)
+class CreateCondition:
+    """Input for creating a condition. No id — the server assigns it."""
+
+    patient_id: str
+    code: str
+    display: str
+    clinical_status: str
+    onset_date: date | None
