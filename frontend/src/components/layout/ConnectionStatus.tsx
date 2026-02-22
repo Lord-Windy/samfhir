@@ -18,10 +18,10 @@ export function ConnectionStatus() {
   if (isError || !data) {
     status = "disconnected"
     label = "Disconnected"
-  } else if (data.status === "healthy" && data.redis === "connected") {
+  } else if (data.status === "ok" && data.redis === "connected") {
     status = "connected"
     label = "Connected"
-  } else if (data.status === "healthy" || data.redis === "connected") {
+  } else if (data.status === "ok" || data.redis === "connected") {
     status = "degraded"
     label = "Degraded"
   } else {
