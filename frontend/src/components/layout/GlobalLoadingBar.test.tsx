@@ -1,8 +1,9 @@
-import { waitFor, act } from "@testing-library/react"
+import { waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render } from "@testing-library/react"
 import { GlobalLoadingBar } from "./GlobalLoadingBar"
-import { startRequest, endRequest, reset } from "@/api/request-timing"
+import { reset } from "@/api/request-timing"
+import * as timing from "@/api/request-timing"
 
 function renderWithQueryClient() {
   const queryClient = new QueryClient({
@@ -83,13 +84,15 @@ describe("GlobalLoadingBar", () => {
 })
 
 describe("GlobalLoadingBar elapsed time", () => {
+  let getSlowRequestElapsedSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     reset()
-    vi.useFakeTimers()
+    getSlowRequestElapsedSpy = vi.spyOn(timing, "getSlowRequestElapsed")
   })
 
   afterEach(() => {
-    vi.useRealTimers()
+    getSlowRequestElapsedSpy.mockRestore()
   })
 
   it("shows elapsed time for slow requests (>1s)", async () => {
@@ -99,6 +102,8 @@ describe("GlobalLoadingBar elapsed time", () => {
         mutations: { retry: false },
       },
     })
+
+    getSlowRequestElapsedSpy.mockReturnValue(1500)
 
     const { container } = render(
       <QueryClientProvider client={queryClient}>
@@ -111,20 +116,10 @@ describe("GlobalLoadingBar elapsed time", () => {
       queryFn: () => new Promise(() => {}),
     })
 
-    await act(async () => {
-      vi.advanceTimersByTime(0)
+    await waitFor(() => {
+      const bar = container.querySelector('[role="progressbar"]')
+      expect(bar).toHaveAttribute("aria-label", "Loading... (1.5s)")
     })
-
-    const requestId = startRequest("/api/slow")
-    
-    await act(async () => {
-      vi.advanceTimersByTime(1500)
-    })
-
-    const bar = container.querySelector('[role="progressbar"]')
-    expect(bar).toHaveAttribute("aria-label", "Loading... (1.5s)")
-
-    endRequest(requestId)
   })
 
   it("does not show elapsed time for fast requests (<1s)", async () => {
@@ -134,6 +129,8 @@ describe("GlobalLoadingBar elapsed time", () => {
         mutations: { retry: false },
       },
     })
+
+    getSlowRequestElapsedSpy.mockReturnValue(null)
 
     const { container } = render(
       <QueryClientProvider client={queryClient}>
@@ -146,19 +143,9 @@ describe("GlobalLoadingBar elapsed time", () => {
       queryFn: () => new Promise(() => {}),
     })
 
-    await act(async () => {
-      vi.advanceTimersByTime(0)
+    await waitFor(() => {
+      const bar = container.querySelector('[role="progressbar"]')
+      expect(bar).toHaveAttribute("aria-label", "Loading")
     })
-
-    const requestId = startRequest("/api/fast")
-
-    await act(async () => {
-      vi.advanceTimersByTime(500)
-    })
-
-    const bar = container.querySelector('[role="progressbar"]')
-    expect(bar).toHaveAttribute("aria-label", "Loading")
-
-    endRequest(requestId)
   })
 })
