@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Plus } from "lucide-react"
+import { AlertCircle, Plus, RefreshCw } from "lucide-react"
 
 export function DashboardPage() {
   const { id } = useParams<{ id: string }>()
-  const { data, isLoading, error, isError } = usePatientSummary(id ?? "")
+  const { data, isLoading, error, isError, refetch, isFetching } = usePatientSummary(id ?? "")
 
   if (isLoading) {
     return (
@@ -95,12 +95,23 @@ export function DashboardPage() {
         <h1 className="text-2xl font-semibold">
           {patient.given_name} {patient.family_name}
         </h1>
-        <Button asChild>
-          <Link to={`/patients/${id}/observations/new`}>
-            <Plus className="h-4 w-4" />
-            Add Observation
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Refresh patient data"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
+          <Button asChild>
+            <Link to={`/patients/${id}/observations/new`}>
+              <Plus className="h-4 w-4" />
+              Add Observation
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <PatientDemographics patient={patient} />

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react"
+import { screen, waitFor, fireEvent } from "@testing-library/react"
 import { http, HttpResponse } from "msw"
 import { server } from "@/mocks/server"
 import { renderWithProviders } from "@/test-utils"
@@ -83,6 +83,41 @@ describe("DashboardPage", () => {
       expect(
         screen.getByText(/unexpected error/i),
       ).toBeInTheDocument()
+    })
+  })
+
+  it("renders refresh button and triggers refetch on click", async () => {
+    renderDashboard("592912")
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("John Smith")
+    })
+
+    const refreshButton = screen.getByRole("button", { name: /refresh patient data/i })
+    expect(refreshButton).toBeInTheDocument()
+
+    let fetchCount = 0
+    server.use(
+      http.get("/api/v1/patients/:id/summary", () => {
+        fetchCount++
+        return HttpResponse.json({
+          patient: {
+            id: "592912",
+            given_name: "John",
+            family_name: "Smith",
+            birth_date: "1990-01-01",
+            gender: "male",
+          },
+          active_conditions: [],
+          recent_observations: [],
+          active_medications: [],
+          allergies: [],
+        })
+      }),
+    )
+
+    fireEvent.click(refreshButton)
+    await waitFor(() => {
+      expect(fetchCount).toBe(1)
     })
   })
 })
