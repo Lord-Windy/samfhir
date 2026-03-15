@@ -1,7 +1,8 @@
-import { waitFor } from "@testing-library/react"
+import { waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render } from "@testing-library/react"
 import { GlobalLoadingBar } from "./GlobalLoadingBar"
+import { startRequest, endRequest, reset } from "@/api/request-timing"
 
 function renderWithQueryClient() {
   const queryClient = new QueryClient({
@@ -26,6 +27,10 @@ function renderWithQueryClient() {
 }
 
 describe("GlobalLoadingBar", () => {
+  beforeEach(() => {
+    reset()
+  })
+
   it("does not render when no requests are pending", () => {
     const { container } = renderWithQueryClient()
     expect(container.firstChild).toBeNull()
@@ -74,5 +79,86 @@ describe("GlobalLoadingBar", () => {
     await waitFor(() => {
       expect(container.querySelector(".animate-progress")).toBeInTheDocument()
     })
+  })
+})
+
+describe("GlobalLoadingBar elapsed time", () => {
+  beforeEach(() => {
+    reset()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("shows elapsed time for slow requests (>1s)", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <GlobalLoadingBar />
+      </QueryClientProvider>,
+    )
+
+    queryClient.fetchQuery({
+      queryKey: ["test-slow"],
+      queryFn: () => new Promise(() => {}),
+    })
+
+    await act(async () => {
+      vi.advanceTimersByTime(0)
+    })
+
+    const requestId = startRequest("/api/slow")
+    
+    await act(async () => {
+      vi.advanceTimersByTime(1500)
+    })
+
+    const bar = container.querySelector('[role="progressbar"]')
+    expect(bar).toHaveAttribute("aria-label", "Loading... (1.5s)")
+
+    endRequest(requestId)
+  })
+
+  it("does not show elapsed time for fast requests (<1s)", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <GlobalLoadingBar />
+      </QueryClientProvider>,
+    )
+
+    queryClient.fetchQuery({
+      queryKey: ["test-fast"],
+      queryFn: () => new Promise(() => {}),
+    })
+
+    await act(async () => {
+      vi.advanceTimersByTime(0)
+    })
+
+    const requestId = startRequest("/api/fast")
+
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+    })
+
+    const bar = container.querySelector('[role="progressbar"]')
+    expect(bar).toHaveAttribute("aria-label", "Loading")
+
+    endRequest(requestId)
   })
 })

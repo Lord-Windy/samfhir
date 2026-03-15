@@ -1,4 +1,5 @@
 import type { ApiErrorBody } from "@/types/api";
+import { startRequest, endRequest } from "./request-timing";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -25,25 +26,31 @@ async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
+  const requestId = startRequest(path);
+  
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
 
-  if (!res.ok) {
-    let body: ApiErrorBody;
-    try {
-      body = (await res.json()) as ApiErrorBody;
-    } catch {
-      throw new ApiError(res.status, { error: res.statusText });
+    if (!res.ok) {
+      let body: ApiErrorBody;
+      try {
+        body = (await res.json()) as ApiErrorBody;
+      } catch {
+        throw new ApiError(res.status, { error: res.statusText });
+      }
+      throw new ApiError(res.status, body);
     }
-    throw new ApiError(res.status, body);
-  }
 
-  return (await res.json()) as T;
+    return (await res.json()) as T;
+  } finally {
+    endRequest(requestId);
+  }
 }
 
 export function get<T>(path: string): Promise<T> {
