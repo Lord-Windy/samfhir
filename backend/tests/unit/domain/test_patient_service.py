@@ -135,17 +135,16 @@ async def test_search_allergies_returns_allergies(
     assert mock_fhir_port.call_count["search_allergies"] == 1
 
 
-async def test_create_observation_delegates_and_invalidates_cache(
+async def test_create_observation_delegates_and_updates_cache(
     mock_fhir_port: MockFhirPort,
     mock_cache_port: MockCachePort,
 ):
     service = PatientService(mock_fhir_port, mock_cache_port)
 
-    # Prime the cache so we can verify invalidation
-    await service.get_patient("test-123")
-    await service.search_observations("test-123")
-    assert "patient:test-123" in mock_cache_port._store
-    assert "observations:test-123" in mock_cache_port._store
+    await service.get_patient_summary("test-123")
+    assert "patient_summary:test-123" in mock_cache_port._store
+    summary_data = json.loads(mock_cache_port._store["patient_summary:test-123"])
+    assert len(summary_data["recent_observations"]) == 1
 
     obs = CreateObservation(
         patient_id="test-123",
@@ -162,10 +161,12 @@ async def test_create_observation_delegates_and_invalidates_cache(
     assert result.value == "120"
     assert mock_fhir_port.call_count["create_observation"] == 1
 
-    # Cache should be invalidated
-    assert "patient:test-123" not in mock_cache_port._store
-    assert "patient_summary:test-123" not in mock_cache_port._store
     assert "observations:test-123" not in mock_cache_port._store
+
+    assert "patient_summary:test-123" in mock_cache_port._store
+    updated_summary = json.loads(mock_cache_port._store["patient_summary:test-123"])
+    assert len(updated_summary["recent_observations"]) == 2
+    assert updated_summary["recent_observations"][0]["id"] == "new-obs-1"
 
 
 async def test_create_condition_delegates_and_invalidates_cache(

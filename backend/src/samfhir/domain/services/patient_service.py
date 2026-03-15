@@ -142,8 +142,21 @@ class PatientService:
 
     async def create_observation(self, observation: CreateObservation) -> Observation:
         result = await self._fhir.create_observation(observation)
-        await self.invalidate_patient_cache(observation.patient_id)
+        await self._add_observation_to_summary_cache(observation.patient_id, result)
+        await self._cache.delete(f"observations:{observation.patient_id}")
         return result
+
+    async def _add_observation_to_summary_cache(
+        self, patient_id: str, observation: Observation
+    ) -> None:
+        cache_key = f"patient_summary:{patient_id}"
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            data = json.loads(cached)
+            data["recent_observations"].insert(0, dataclasses.asdict(observation))
+            await self._cache.set(
+                cache_key, json.dumps(data, default=_date_default), self._ttl
+            )
 
     async def create_condition(self, condition: CreateCondition) -> Condition:
         result = await self._fhir.create_condition(condition)
