@@ -86,7 +86,6 @@ describe("DashboardPage", () => {
     })
   })
 
-<<<<<<< HEAD
   it("renders refresh button and triggers refetch on click", async () => {
     renderDashboard("592912")
     await waitFor(() => {
@@ -119,12 +118,13 @@ describe("DashboardPage", () => {
     fireEvent.click(refreshButton)
     await waitFor(() => {
       expect(fetchCount).toBe(1)
-=======
+    })
+  })
+
   it("displays last updated timestamp when data is loaded", async () => {
     renderDashboard("592912")
     await waitFor(() => {
       expect(screen.getByText(/Updated \d+[smhd] ago/)).toBeInTheDocument()
->>>>>>> ticket-b02f5982
     })
   })
 })
