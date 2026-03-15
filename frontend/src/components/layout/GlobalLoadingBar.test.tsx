@@ -44,6 +44,22 @@ describe("GlobalLoadingBar", () => {
     })
   })
 
+  it("has accessibility attributes when visible", async () => {
+    const { container, queryClient } = renderWithQueryClient()
+
+    queryClient.fetchQuery({
+      queryKey: ["test-a11y"],
+      queryFn: () => new Promise(() => {}),
+    })
+
+    await waitFor(() => {
+      const bar = container.querySelector('[role="progressbar"]')
+      expect(bar).toBeInTheDocument()
+      expect(bar).toHaveAttribute("aria-busy", "true")
+      expect(bar).toHaveAttribute("aria-label", "Loading")
+    })
+  })
+
   it("renders when a mutation is in progress", async () => {
     const { container, queryClient } = renderWithQueryClient()
 

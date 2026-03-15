@@ -10,7 +10,12 @@ export function GlobalLoadingBar() {
   }
 
   return (
-    <div className="fixed left-0 top-0 z-50 w-full">
+    <div
+      className="fixed left-0 top-0 z-50 w-full"
+      role="progressbar"
+      aria-busy="true"
+      aria-label="Loading"
+    >
       <div className="h-1 w-full overflow-hidden bg-transparent">
         <div className="animate-progress h-full w-1/4 bg-primary" />
       </div>
