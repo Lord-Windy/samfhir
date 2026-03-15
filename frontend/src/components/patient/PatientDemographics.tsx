@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatRelativeTime } from "@/lib/utils"
 import type { PatientResponse } from "@/types/api"
 
 interface PatientDemographicsProps {
   patient: PatientResponse
+  lastUpdated?: number
 }
 
-export function PatientDemographics({ patient }: PatientDemographicsProps) {
+export function PatientDemographics({ patient, lastUpdated }: PatientDemographicsProps) {
   const formattedDob = new Date(patient.birth_date).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -16,10 +18,15 @@ export function PatientDemographics({ patient }: PatientDemographicsProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-start justify-between">
         <CardTitle>
           {patient.given_name} {patient.family_name}
         </CardTitle>
+        {lastUpdated && (
+          <span className="text-xs text-muted-foreground">
+            {formatRelativeTime(lastUpdated)}
+          </span>
+        )}
       </CardHeader>
       <CardContent>
         <dl className="grid grid-cols-2 gap-4 text-sm">
