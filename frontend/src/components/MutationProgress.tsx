@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef } from "react"
-import { Loader2, CheckCircle, RefreshCw } from "lucide-react"
+import { Loader2, CheckCircle, RefreshCw, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Phase =
@@ -75,7 +75,7 @@ const phaseConfig: Record<
     iconClass: "text-green-500",
   },
   error: {
-    icon: CheckCircle,
+    icon: XCircle,
     text: "Error",
     iconClass: "text-destructive",
   },
