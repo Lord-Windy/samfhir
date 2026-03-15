@@ -1,5 +1,6 @@
 export { AppLayout } from "./AppLayout"
 export { ErrorBoundary } from "./ErrorBoundary"
+export { GlobalLoadingBar } from "./GlobalLoadingBar"
 export { Header } from "./Header"
 export { Nav } from "./Nav"
 export { ConnectionStatus } from "./ConnectionStatus"
