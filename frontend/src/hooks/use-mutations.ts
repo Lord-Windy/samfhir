@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createCondition, createObservation } from "@/api/endpoints"
 import { queryKeys } from "./query-keys"
-import type { CreateObservationRequest, ObservationResponse } from "@/types/api"
+import type { CreateObservationRequest, ObservationResponse, PatientSummaryResponse } from "@/types/api"
 
 function generateTempId(): string {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -35,13 +35,36 @@ export function useCreateObservation() {
         (old) => (old ? [...old, optimisticObservation] : [optimisticObservation]),
       )
 
-      return { previousObservations }
+      const previousSummary = queryClient.getQueryData<PatientSummaryResponse>(
+        queryKeys.patients.summary(variables.patient_id),
+      )
+
+      if (previousSummary) {
+        queryClient.setQueryData<PatientSummaryResponse>(
+          queryKeys.patients.summary(variables.patient_id),
+          (old) =>
+            old
+              ? {
+                  ...old,
+                  recent_observations: [...old.recent_observations, optimisticObservation],
+                }
+              : undefined,
+        )
+      }
+
+      return { previousObservations, previousSummary }
     },
     onError: (_err, variables, context) => {
       if (context?.previousObservations) {
         queryClient.setQueryData(
           queryKeys.observations(variables.patient_id),
           context.previousObservations,
+        )
+      }
+      if (context?.previousSummary) {
+        queryClient.setQueryData(
+          queryKeys.patients.summary(variables.patient_id),
+          context.previousSummary,
         )
       }
     },
