@@ -115,7 +115,10 @@ async def get_patient(
 async def get_patient_summary(
     patient_id: str,
     service: PatientService = Depends(get_patient_service),
+    refresh: bool = False,
 ) -> PatientSummaryResponse:
+    if refresh:
+        await service.invalidate_patient_cache(patient_id)
     summary = await service.get_patient_summary(patient_id)
     return _summary_to_response(summary)
 

@@ -25,9 +25,11 @@ export function getPatient(patientId: string): Promise<PatientResponse> {
 
 export function getPatientSummary(
   patientId: string,
+  refresh?: boolean,
 ): Promise<PatientSummaryResponse> {
+  const params = refresh ? "?refresh=true" : "";
   return get<PatientSummaryResponse>(
-    `/api/v1/patients/${patientId}/summary`,
+    `/api/v1/patients/${patientId}/summary${params}`,
   );
 }
 

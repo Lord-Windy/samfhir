@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { getPatient, getPatientSummary, searchPatients } from "@/api/endpoints"
 import { queryKeys } from "./query-keys"
 
@@ -19,9 +19,16 @@ export function usePatient(patientId: string) {
 }
 
 export function usePatientSummary(patientId: string) {
-  return useQuery({
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: queryKeys.patients.summary(patientId),
     queryFn: () => getPatientSummary(patientId),
     enabled: !!patientId,
   })
+  const refresh = () =>
+    queryClient.fetchQuery({
+      queryKey: queryKeys.patients.summary(patientId),
+      queryFn: () => getPatientSummary(patientId, true),
+    })
+  return { ...query, refresh }
 }

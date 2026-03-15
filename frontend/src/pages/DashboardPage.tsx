@@ -16,7 +16,7 @@ import { AlertCircle, Plus, RefreshCw } from "lucide-react"
 
 export function DashboardPage() {
   const { id } = useParams<{ id: string }>()
-  const { data, isLoading, error, isError, refetch, isFetching, dataUpdatedAt } = usePatientSummary(id ?? "")
+  const { data, isLoading, error, isError, refresh, isFetching, dataUpdatedAt } = usePatientSummary(id ?? "")
 
   if (isLoading) {
     return (
@@ -99,7 +99,7 @@ export function DashboardPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => refetch()}
+            onClick={() => refresh()}
             disabled={isFetching}
             aria-label="Refresh patient data"
           >
