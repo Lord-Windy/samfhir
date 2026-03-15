@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { useParams, useNavigate } from "react-router"
-import { toast } from "sonner"
 import { useCreateObservation } from "@/hooks/use-mutations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { MutationProgress } from "@/components/MutationProgress"
 import type { CreateObservationRequest } from "@/types/api"
 
 const PRESETS = [
@@ -101,8 +101,6 @@ export function ObservationFormPage() {
 
     try {
       await createObservation.mutateAsync(payload)
-      toast.success("Observation created successfully")
-      navigate(`/patients/${id}`)
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Failed to create observation"
@@ -110,8 +108,19 @@ export function ObservationFormPage() {
     }
   }
 
+  function handleProgressComplete() {
+    navigate(`/patients/${id}`)
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
+      <MutationProgress
+        isPending={createObservation.isPending}
+        isSuccess={createObservation.isSuccess}
+        isError={createObservation.isError}
+        errorMessage={submitError ?? undefined}
+        onComplete={handleProgressComplete}
+      />
       <Card>
         <CardHeader>
           <CardTitle>New Observation</CardTitle>
