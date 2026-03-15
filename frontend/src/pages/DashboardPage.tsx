@@ -16,7 +16,7 @@ import { AlertCircle, Plus } from "lucide-react"
 
 export function DashboardPage() {
   const { id } = useParams<{ id: string }>()
-  const { data, isLoading, error, isError } = usePatientSummary(id ?? "")
+  const { data, isLoading, error, isError, dataUpdatedAt } = usePatientSummary(id ?? "")
 
   if (isLoading) {
     return (
@@ -103,7 +103,7 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      <PatientDemographics patient={patient} />
+      <PatientDemographics patient={patient} lastUpdated={dataUpdatedAt} />
 
       <Tabs defaultValue="conditions">
         <TabsList>

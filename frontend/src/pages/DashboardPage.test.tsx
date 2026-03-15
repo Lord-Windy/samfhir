@@ -85,4 +85,11 @@ describe("DashboardPage", () => {
       ).toBeInTheDocument()
     })
   })
+
+  it("displays last updated timestamp when data is loaded", async () => {
+    renderDashboard("592912")
+    await waitFor(() => {
+      expect(screen.getByText(/Updated \d+[smhd] ago/)).toBeInTheDocument()
+    })
+  })
 })
