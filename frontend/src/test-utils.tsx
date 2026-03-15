@@ -3,6 +3,7 @@ import { render } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import type { RenderOptions } from "@testing-library/react"
 import type { ReactElement, ReactNode } from "react"
+import { OfflineQueueProvider } from "@/components/layout"
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -35,9 +36,11 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={initialEntries}>
-          {children}
-        </MemoryRouter>
+        <OfflineQueueProvider>
+          <MemoryRouter initialEntries={initialEntries}>
+            {children}
+          </MemoryRouter>
+        </OfflineQueueProvider>
       </QueryClientProvider>
     )
   }

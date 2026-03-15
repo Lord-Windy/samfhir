@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from "@/components/ui/sonner"
-import { AppLayout, ErrorBoundary, GlobalLoadingBar } from "@/components/layout"
+import { AppLayout, ErrorBoundary, GlobalLoadingBar, OfflineQueueProvider } from "@/components/layout"
 import { SearchPage, CacheStatsPage } from "@/pages"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { ObservationFormPage } from "@/pages/ObservationFormPage"
@@ -45,9 +45,11 @@ const router = createBrowserRouter([
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <GlobalLoadingBar />
-      <RouterProvider router={router} />
-      <Toaster />
+      <OfflineQueueProvider>
+        <GlobalLoadingBar />
+        <RouterProvider router={router} />
+        <Toaster />
+      </OfflineQueueProvider>
     </QueryClientProvider>
   )
 }
