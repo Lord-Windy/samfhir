@@ -9,7 +9,7 @@ ql.ai.register("opencode", {
 ql.ai.set_merge_resolver("opencode", "resolve_conflict.md")
 
 local function fetch_tickets()
-    local result = ql.exec(".", "st", "list", "--ready", "--project", "SAMTRADER", "--json")
+    local result = ql.exec(".", "st", "list", "--ready", "--project", "SAMFHIR", "--json")
 
     if not result.success then
         error("Failed to fetch tickets: " .. result.stderr)
