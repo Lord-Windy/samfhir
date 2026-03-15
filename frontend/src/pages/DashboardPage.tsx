@@ -16,11 +16,7 @@ import { AlertCircle, Plus, RefreshCw } from "lucide-react"
 
 export function DashboardPage() {
   const { id } = useParams<{ id: string }>()
-<<<<<<< HEAD
-  const { data, isLoading, error, isError, refetch, isFetching } = usePatientSummary(id ?? "")
-=======
-  const { data, isLoading, error, isError, dataUpdatedAt } = usePatientSummary(id ?? "")
->>>>>>> ticket-b02f5982
+  const { data, isLoading, error, isError, refetch, isFetching, dataUpdatedAt } = usePatientSummary(id ?? "")
 
   if (isLoading) {
     return (

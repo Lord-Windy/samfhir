@@ -63,13 +63,11 @@ describe("GlobalLoadingBar", () => {
   it("renders when a mutation is in progress", async () => {
     const { container, queryClient } = renderWithQueryClient()
 
-    queryClient.getMutationDefaults()
-
     const mutation = queryClient.getMutationCache().build(queryClient, {
       mutationFn: () => new Promise(() => {}),
     })
 
-    mutation.execute()
+    mutation.execute(undefined)
 
     await waitFor(() => {
       expect(container.querySelector(".animate-progress")).toBeInTheDocument()
